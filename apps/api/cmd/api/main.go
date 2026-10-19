@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -84,10 +85,18 @@ func main() {
 	var authService *service.AuthService
 	var authHandler *handler.AuthHandler
 
+	var parameterRepo *repository.ParameterRepository
+	var parameterService *service.ParameterService
+	var parameterHandler *handler.ParameterHandler
+
 	if db != nil {
 		userRepo = repository.NewUserRepository(db)
 		authService = service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
 		authHandler = handler.NewAuthHandler(authService)
+
+		parameterRepo = repository.NewParameterRepository(db)
+		parameterService = service.NewParameterService(parameterRepo)
+		parameterHandler = handler.NewParameterHandler(parameterService)
 	}
 
 	mux := http.NewServeMux()
@@ -155,6 +164,38 @@ func main() {
 
 		// Roles list: GET /api/v1/roles
 		mux.HandleFunc("/api/v1/roles", authHandler.Roles)
+	}
+
+	// 4. General Parameters Endpoints
+	if parameterHandler != nil && authService != nil {
+		// Parameter types: GET /api/v1/parameters/types
+		mux.HandleFunc("/api/v1/parameters/types", parameterHandler.HandleParameterTypes)
+
+		// List & Create: GET (public/read), POST (Admin only)
+		mux.Handle("/api/v1/parameters", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				adminHandler := middleware.AuthMiddleware(authService, middleware.RequireSysAdmin(http.HandlerFunc(parameterHandler.HandleParameters)))
+				adminHandler.ServeHTTP(w, r)
+				return
+			}
+			parameterHandler.HandleParameters(w, r)
+		}))
+
+		// Parameter by ID & Toggle: /api/v1/parameters/{id} & /api/v1/parameters/{id}/toggle
+		mux.Handle("/api/v1/parameters/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/toggle") {
+				adminHandler := middleware.AuthMiddleware(authService, middleware.RequireSysAdmin(http.HandlerFunc(parameterHandler.HandleToggleParameter)))
+				adminHandler.ServeHTTP(w, r)
+				return
+			}
+
+			if r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete {
+				adminHandler := middleware.AuthMiddleware(authService, middleware.RequireSysAdmin(http.HandlerFunc(parameterHandler.HandleParameterByID)))
+				adminHandler.ServeHTTP(w, r)
+				return
+			}
+			parameterHandler.HandleParameterByID(w, r)
+		}))
 	}
 
 	handlerWithCORS := corsMiddleware(cfg.CORSAllowedOrigins, mux)

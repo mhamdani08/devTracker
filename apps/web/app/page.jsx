@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SIDEBAR_NAVIGATION, filterMenuForUser, getRoleBadgeStyle, groupMenuByCategory } from "../lib/navigation";
+import GeneralParameterView from "../components/GeneralParameterView";
 
 export default function HomePage() {
   // Authentication & User State
@@ -24,13 +25,13 @@ export default function HomePage() {
   const [isTablet, setIsTablet] = useState(false);
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [taskSearchQuery, setTaskSearchQuery] = useState("");
 
-  // Same-origin Next.js proxy to backend
   const apiBaseUrl = "/api/v1";
 
   // Demo accounts for rapid role testing
   const demoAccounts = [
-    { id: "admin", label: "SysAdmin / Lead", email: "admin@devtracker.local", role: "Tech Lead (SYS_ADMIN)" },
+    { id: "admin", label: "SysAdmin", email: "admin@devtracker.local", role: "Tech Lead (SYS_ADMIN)" },
     { id: "sa", label: "System Analyst", email: "sa@devtracker.local", role: "System Analyst" },
     { id: "dev", label: "Developer", email: "dev@devtracker.local", role: "Backend Developer" },
     { id: "qa", label: "QA Engineer", email: "qa@devtracker.local", role: "QA Engineer" },
@@ -90,19 +91,19 @@ export default function HomePage() {
     }
 
     checkApi();
-    const interval = setInterval(checkApi, 12000);
+    const interval = setInterval(checkApi, 15000);
     return () => clearInterval(interval);
   }, [apiBaseUrl]);
 
-  // 3. Responsive Breakpoints: Tablet/Mobile (< 1024px) auto-collapses to Drawer Overlay
+  // 3. Responsive Breakpoints
   useEffect(() => {
     function handleResize() {
       const tablet = window.innerWidth < 1024;
       setIsTablet(tablet);
       if (tablet) {
-        setSidebarOpen(false); // default closed drawer on mobile & tablet
+        setSidebarOpen(false);
       } else {
-        setSidebarOpen(true);  // default open (256px) on desktop
+        setSidebarOpen(true);
       }
     }
     handleResize();
@@ -113,11 +114,11 @@ export default function HomePage() {
   function handleSelectMenu(itemId) {
     setActiveMenu(itemId);
     if (isTablet) {
-      setSidebarOpen(false); // auto-close drawer overlay after selection on mobile/tablet
+      setSidebarOpen(false);
     }
   }
 
-  // Handle Login Submit
+  // Handle Login
   async function handleLogin(e) {
     if (e) e.preventDefault();
     setLoginError("");
@@ -145,7 +146,6 @@ export default function HomePage() {
         return;
       }
 
-      // Success
       const token = data.data.token;
       const user = data.data.user;
 
@@ -172,7 +172,6 @@ export default function HomePage() {
     setLoginError("");
   }
 
-  // Select demo account
   function selectDemoAccount(acc) {
     setActiveDemoRole(acc.id);
     setEmail(acc.email);
@@ -180,7 +179,7 @@ export default function HomePage() {
     setLoginError("");
   }
 
-  // Demo Tasks
+  // Sample Tasks
   const sampleTasks = [
     {
       id: "TSK-101",
@@ -191,7 +190,6 @@ export default function HomePage() {
       assignee: "System Administrator",
       assigneeInitials: "SA",
       dueDate: "Hari ini",
-      blocker: null,
     },
     {
       id: "TSK-102",
@@ -202,7 +200,6 @@ export default function HomePage() {
       assignee: "Budi Developer",
       assigneeInitials: "BD",
       dueDate: "Hari ini",
-      blocker: null,
     },
     {
       id: "TSK-103",
@@ -213,30 +210,30 @@ export default function HomePage() {
       assignee: "Tech Lead",
       assigneeInitials: "TL",
       dueDate: "Hari ini",
-      blocker: null,
     },
     {
       id: "TSK-104",
-      title: "Integrasi audit log perubahan status task & blocker warning",
-      project: "DevTracker Core",
+      title: "Setup menu dan tabel referensi terpusat general_parameters (Unified Lookup Table)",
+      project: "Master Data",
       status: "in_progress",
       priority: "medium",
       assignee: "Frontend Lead",
       assigneeInitials: "FL",
       dueDate: "22 Okt 2026",
-      blocker: null,
     },
   ];
 
   const filteredTasks = sampleTasks.filter((t) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "in_progress") return t.status === "in_progress";
-    if (activeTab === "blocked") return t.status === "blocked";
-    if (activeTab === "done") return t.status === "done";
+    if (activeTab === "in_progress" && t.status !== "in_progress") return false;
+    if (activeTab === "blocked" && t.status !== "blocked") return false;
+    if (activeTab === "done" && t.status !== "done") return false;
+    if (taskSearchQuery.trim()) {
+      const q = taskSearchQuery.toLowerCase();
+      return t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || t.project.toLowerCase().includes(q);
+    }
     return true;
   });
 
-  // Calculate dynamic menu items for current user
   const allowedMenuItems = currentUser ? filterMenuForUser(SIDEBAR_NAVIGATION, currentUser) : [];
   const menuGroups = currentUser ? groupMenuByCategory(allowedMenuItems) : [];
   const roleBadge = currentUser ? getRoleBadgeStyle(currentUser.role_code) : null;
@@ -246,7 +243,7 @@ export default function HomePage() {
     switch (iconType) {
       case "dashboard":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="9"></rect>
             <rect x="14" y="3" width="7" height="5"></rect>
             <rect x="14" y="12" width="7" height="9"></rect>
@@ -255,31 +252,44 @@ export default function HomePage() {
         );
       case "tasks":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 11l3 3L22 4"></path>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
           </svg>
         );
       case "my_tasks":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
         );
+      case "parameters":
+        return (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+        );
       case "requirements":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
         );
       case "testing_queue":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 2v6"></path>
             <path d="M15 2v6"></path>
             <path d="M12 17v5"></path>
@@ -287,54 +297,29 @@ export default function HomePage() {
             <path d="M6 8l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"></path>
           </svg>
         );
-      case "bugs":
-        return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m8 2 1.88 1.88"></path>
-            <path d="M14.12 3.88 16 2"></path>
-            <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"></path>
-            <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"></path>
-            <path d="M12 20v-9"></path>
-            <path d="M6.53 9C4.6 8.8 3 7.1 3 5"></path>
-            <path d="M6 13H2"></path>
-            <path d="M3 21c0-2.1 1.7-3.9 3.8-4"></path>
-            <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"></path>
-            <path d="M22 13h-4"></path>
-            <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"></path>
-          </svg>
-        );
       case "roadmap":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
         );
-      case "blockers":
-        return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-        );
       case "user_management":
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="9" cy="7" r="4"></circle>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
         );
-      case "activity":
       default:
         return (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="12 8 12 12 14 14"></polyline>
-            <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"></path>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
           </svg>
         );
     }
@@ -349,16 +334,16 @@ export default function HomePage() {
         <div style={{ textAlign: "center" }}>
           <div
             style={{
-              width: "42px",
-              height: "42px",
+              width: "36px",
+              height: "36px",
               borderRadius: "50%",
               border: "3px solid var(--green-200)",
               borderTopColor: "var(--green-600)",
               animation: "spin 0.8s linear infinite",
-              margin: "0 auto 1rem",
+              margin: "0 auto 0.75rem",
             }}
           ></div>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", fontWeight: "500" }}>Memuat sesi devTracker...</p>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontWeight: "600" }}>Memuat workspace devTracker...</p>
         </div>
         <style jsx>{`
           @keyframes spin {
@@ -370,7 +355,7 @@ export default function HomePage() {
   }
 
   // =========================================================================
-  // VIEW 2: LOGIN FORM (Clean White Theme + Emerald Green Accents)
+  // VIEW 2: LOGIN FORM (DASH UI STYLE)
   // =========================================================================
   if (!authToken || !currentUser) {
     return (
@@ -385,305 +370,167 @@ export default function HomePage() {
           padding: "1.5rem",
         }}
       >
-        {/* Login Card */}
         <div
-          className="animate-fade-in"
+          className="dash-card animate-fade-in"
           style={{
             width: "100%",
-            maxWidth: "480px",
-            backgroundColor: "var(--bg-surface)",
-            borderRadius: "var(--radius-lg)",
-            border: "1px solid var(--border-light)",
-            boxShadow: "var(--shadow-lg)",
-            padding: "2.5rem 2.25rem",
+            maxWidth: "460px",
+            padding: "2.25rem 2rem",
+            boxShadow: "var(--shadow-md)",
           }}
         >
-          {/* Header & Logo */}
+          {/* Dash UI Auth Header */}
           <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
             <div
               style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "12px",
+                width: "44px",
+                height: "44px",
+                borderRadius: "10px",
                 backgroundColor: "var(--green-600)",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
+                color: "#ffffff",
                 boxShadow: "var(--shadow-green)",
-                marginBottom: "1rem",
+                marginBottom: "0.85rem",
               }}
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
               </svg>
             </div>
-            <h1 style={{ fontSize: "1.45rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.03em", margin: 0, lineHeight: 1.25 }}>
-              Core & Apps Support
+            <h1 style={{ fontSize: "1.35rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.02em" }}>
+              Masuk ke devTracker
             </h1>
-            <p style={{ color: "var(--green-700)", fontSize: "0.95rem", fontWeight: "700", marginTop: "0.35rem", letterSpacing: "-0.01em" }}>
-              Development Tracker
+            <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginTop: "3px" }}>
+              Sistem Pelacakan Progress & Kolaborasi Developer
             </p>
           </div>
 
-          {/* Quick Demo Role Selector */}
+          {/* Quick Demo Role Switcher */}
           <div
             style={{
-              backgroundColor: "var(--green-50)",
-              border: "1px solid var(--green-200)",
-              borderRadius: "var(--radius-md)",
-              padding: "0.85rem",
-              marginBottom: "1.5rem",
+              backgroundColor: "#f8fafc",
+              border: "1px solid var(--border-light)",
+              borderRadius: "8px",
+              padding: "0.75rem",
+              marginBottom: "1.25rem",
             }}
           >
-            <div style={{ fontSize: "0.74rem", fontWeight: "700", color: "var(--green-900)", marginBottom: "0.5rem" }}>
-              Pilih Role Akun Demo untuk Uji Sidebar Dinamis:
+            <div style={{ fontSize: "0.72rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+              Pilih Akun Demo Cepat:
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-              {demoAccounts.map((acc) => {
-                const isSelected = activeDemoRole === acc.id;
-                return (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    onClick={() => selectDemoAccount(acc)}
-                    style={{
-                      padding: "0.3rem 0.6rem",
-                      borderRadius: "6px",
-                      border: isSelected ? "1px solid var(--green-600)" : "1px solid rgba(0,0,0,0.08)",
-                      backgroundColor: isSelected ? "var(--green-600)" : "#ffffff",
-                      color: isSelected ? "#ffffff" : "var(--green-900)",
-                      fontSize: "0.72rem",
-                      fontWeight: isSelected ? "700" : "600",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    {acc.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ fontSize: "0.72rem", color: "var(--green-800)", marginTop: "0.45rem", fontFamily: "var(--font-mono)" }}>
-              Password: <strong>Admin123!</strong>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+              {demoAccounts.map((acc) => (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => selectDemoAccount(acc)}
+                  style={{
+                    fontSize: "0.74rem",
+                    fontWeight: activeDemoRole === acc.id ? "700" : "600",
+                    padding: "3px 8px",
+                    borderRadius: "5px",
+                    border: `1px solid ${activeDemoRole === acc.id ? "var(--green-500)" : "var(--border-light)"}`,
+                    backgroundColor: activeDemoRole === acc.id ? "var(--green-50)" : "#ffffff",
+                    color: activeDemoRole === acc.id ? "var(--green-800)" : "var(--text-main)",
+                    cursor: "pointer",
+                    transition: "all 0.12s ease",
+                  }}
+                >
+                  {acc.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Error Alert */}
           {loginError && (
             <div
               style={{
-                backgroundColor: "var(--red-50)",
+                backgroundColor: "#fef2f2",
+                color: "#991b1b",
                 border: "1px solid #fecaca",
-                borderRadius: "var(--radius-md)",
-                padding: "0.75rem 1rem",
-                marginBottom: "1.25rem",
-                color: "var(--red-500)",
-                fontSize: "0.84rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
+                padding: "0.65rem 0.85rem",
+                borderRadius: "6px",
+                fontSize: "0.82rem",
+                marginBottom: "1rem",
+                fontWeight: "500",
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <span>{loginError}</span>
+              {loginError}
             </div>
           )}
 
-          {/* Form */}
+          {/* Login Form */}
           <form onSubmit={handleLogin}>
-            {/* Email Field */}
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: "600", color: "var(--text-main)", marginBottom: "0.4rem" }}>
-                Email Akun
+            <div style={{ marginBottom: "1.1rem" }}>
+              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: "600", color: "var(--text-main)", marginBottom: "5px" }}>
+                Alamat Email
               </label>
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <svg
-                  style={{ position: "absolute", left: "12px", color: "var(--text-subtle)", pointerEvents: "none" }}
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                  <polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
-                <input
-                  type="email"
-                  required
-                  placeholder="nama@perusahaan.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem 1rem 0.65rem 2.4rem",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-light)",
-                    fontSize: "0.9rem",
-                    color: "var(--text-main)",
-                    backgroundColor: "#ffffff",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "var(--green-500)";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.15)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border-light)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                />
-              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nama@devtracker.local"
+                style={{
+                  width: "100%",
+                  padding: "0.55rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light)",
+                  outline: "none",
+                }}
+              />
             </div>
 
-            {/* Password Field */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                <label style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-main)" }}>
-                  Password
+            <div style={{ marginBottom: "1.35rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-main)" }}>
+                  Kata Sandi (Password)
                 </label>
-              </div>
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <svg
-                  style={{ position: "absolute", left: "12px", color: "var(--text-subtle)", pointerEvents: "none" }}
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="Masukkan password Anda"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.65rem 2.5rem 0.65rem 2.4rem",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-light)",
-                    fontSize: "0.9rem",
-                    color: "var(--text-main)",
-                    backgroundColor: "#ffffff",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "var(--green-500)";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px rgba(16, 185, 129, 0.15)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "var(--border-light)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: "absolute",
-                    right: "10px",
-                    background: "none",
-                    border: "none",
-                    color: "var(--text-subtle)",
-                    cursor: "pointer",
-                    padding: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                  title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  style={{ background: "none", border: "none", fontSize: "0.74rem", color: "var(--green-700)", fontWeight: "600", cursor: "pointer" }}
                 >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                      <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                  )}
+                  {showPassword ? "Sembunyikan" : "Tampilkan"}
                 </button>
               </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: "100%",
+                  padding: "0.55rem 0.75rem",
+                  fontSize: "0.85rem",
+                  borderRadius: "6px",
+                  border: "1px solid var(--border-light)",
+                  outline: "none",
+                }}
+              />
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
+              className="dash-btn dash-btn-primary"
               style={{
                 width: "100%",
-                padding: "0.75rem",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor: isSubmitting ? "var(--green-700)" : "var(--green-600)",
-                color: "#ffffff",
-                fontSize: "0.95rem",
+                padding: "0.65rem 1rem",
+                fontSize: "0.88rem",
                 fontWeight: "700",
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                boxShadow: "var(--shadow-green)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                if (!isSubmitting) e.currentTarget.style.backgroundColor = "var(--green-700)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isSubmitting) e.currentTarget.style.backgroundColor = "var(--green-600)";
               }}
             >
-              {isSubmitting ? (
-                <>
-                  <div
-                    style={{
-                      width: "18px",
-                      height: "18px",
-                      borderRadius: "50%",
-                      border: "2px solid #ffffff",
-                      borderTopColor: "transparent",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  ></div>
-                  <span>Memverifikasi Akun...</span>
-                </>
-              ) : (
-                <>
-                  <span>Masuk ke Workspace</span>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                  </svg>
-                </>
-              )}
+              {isSubmitting ? "Memverifikasi..." : "Masuk ke Workspace"}
             </button>
           </form>
 
-          {/* Service Status Footer */}
-          <div style={{ marginTop: "2rem", borderTop: "1px solid var(--border-light)", paddingTop: "1rem", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap", fontSize: "0.72rem", color: "var(--text-subtle)" }}>
-              <span>API: <strong>:8081</strong></span>
-              <span>&bull;</span>
-              <span>Web: <strong>:3002</strong></span>
-              <span>&bull;</span>
-              <span>DB: <strong>:5435</strong></span>
-            </div>
+          <div style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.74rem", color: "var(--text-muted)" }}>
+            Docker Environment &bull; PostgreSQL 16 &bull; Go REST API
           </div>
         </div>
       </div>
@@ -691,851 +538,410 @@ export default function HomePage() {
   }
 
   // =========================================================================
-  // VIEW 3: AUTHENTICATED DASHBOARD WITH DYNAMIC SIDEBAR
+  // VIEW 3: MAIN DASHBOARD SHELL (DASH UI STYLE)
   // =========================================================================
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", backgroundColor: "var(--bg-canvas)", overflow: "hidden" }}>
-      {/* ============================================================ */}
-      {/* 1. TOP NAVBAR (64px, Sticky & Fixed, Subtle Border) */}
-      {/* ============================================================ */}
-      <nav
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "var(--bg-canvas)" }}>
+      {/* 1. SIDEBAR (DASH UI DARK SLATE) */}
+      <aside
         style={{
-          height: "64px",
-          minHeight: "64px",
-          maxHeight: "64px",
-          flexShrink: 0,
-          backgroundColor: "var(--green-900)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          width: sidebarOpen ? "256px" : "70px",
+          backgroundColor: "#0f172a", // Dash UI dark theme
+          color: "#ffffff",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 24px",
-          position: "sticky",
-          top: 0,
+          flexDirection: "column",
+          flexShrink: 0,
+          borderRight: "1px solid #1e293b",
+          transition: "width 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
           zIndex: 50,
-          boxShadow: "none",
+          position: isTablet ? "fixed" : "sticky",
+          top: 0,
+          height: "100vh",
+          left: isTablet && !sidebarOpen ? "-260px" : 0,
         }}
       >
-        {/* Brand & Sidebar Toggle */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+        {/* Sidebar Brand Header */}
+        <div
+          style={{
+            height: "60px",
+            display: "flex",
+            alignItems: "center",
+            padding: sidebarOpen ? "0 18px" : "0",
+            justifyContent: sidebarOpen ? "flex-start" : "center",
+            borderBottom: "1px solid #1e293b",
+            gap: "10px",
+          }}
+        >
+          <div
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              color: "#ffffff",
-              width: "36px",
-              height: "36px",
-              borderRadius: "8px",
-              cursor: "pointer",
+              width: "32px",
+              height: "32px",
+              borderRadius: "7px",
+              backgroundColor: "var(--green-500)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all 0.2s",
+              color: "#0f172a",
+              fontWeight: "900",
+              fontSize: "0.95rem",
+              flexShrink: 0,
             }}
-            title={
-              isTablet
-                ? (sidebarOpen ? "Tutup Drawer Menu" : "Buka Drawer Menu (Overlay)")
-                : (sidebarOpen ? "Tutup Sidebar (Kecilkan ke 68px)" : "Buka Sidebar (Perluas ke 256px)")
-            }
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
+            dT
+          </div>
+          {sidebarOpen && (
+            <div>
+              <div style={{ fontSize: "1rem", fontWeight: "800", letterSpacing: "-0.02em", color: "#ffffff" }}>
+                devTracker
+              </div>
+              <div style={{ fontSize: "0.66rem", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase" }}>
+                Core Workspace
+              </div>
+            </div>
+          )}
+        </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <div
+        {/* Sidebar Navigation Items */}
+        <div style={{ flex: 1, padding: sidebarOpen ? "14px 10px" : "14px 6px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+          {menuGroups.map((group) => (
+            <div key={group.id}>
+              {sidebarOpen && (
+                <div
+                  style={{
+                    fontSize: "0.66rem",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "#64748b",
+                    padding: "0 10px 6px",
+                  }}
+                >
+                  {group.label}
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {group.items.map((item) => {
+                  const isActive = activeMenu === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleSelectMenu(item.id)}
+                      title={!sidebarOpen ? item.label : undefined}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: sidebarOpen ? "space-between" : "center",
+                        padding: sidebarOpen ? "0.55rem 0.75rem" : "0.55rem 0",
+                        width: "100%",
+                        borderRadius: "6px",
+                        border: "none",
+                        backgroundColor: isActive ? "rgba(16, 185, 129, 0.15)" : "transparent",
+                        color: isActive ? "#34d399" : "#94a3b8",
+                        fontWeight: isActive ? "700" : "500",
+                        fontSize: "0.82rem",
+                        cursor: "pointer",
+                        transition: "all 0.12s ease",
+                        textAlign: "left",
+                        borderLeft: isActive && sidebarOpen ? "3px solid #10b981" : "3px solid transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                          e.currentTarget.style.color = "#ffffff";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "#94a3b8";
+                        }
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ color: isActive ? "#34d399" : "#64748b", display: "flex", flexShrink: 0 }}>
+                          {renderMenuIcon(item.icon)}
+                        </span>
+                        {sidebarOpen && <span>{item.label}</span>}
+                      </div>
+
+                      {sidebarOpen && item.id === "general_parameters" && (
+                        <span
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: "700",
+                            backgroundColor: "rgba(16, 185, 129, 0.2)",
+                            color: "#34d399",
+                            padding: "1px 6px",
+                            borderRadius: "9999px",
+                          }}
+                        >
+                          Lookup
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+
+      </aside>
+
+      {/* 2. MAIN LAYOUT (NAVBAR + CONTENT AREA) */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* TOP NAVBAR (DASH UI NAVBAR) */}
+        <header
+          style={{
+            height: "60px",
+            backgroundColor: "#ffffff",
+            borderBottom: "1px solid var(--border-light)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 24px",
+            position: "sticky",
+            top: 0,
+            zIndex: 40,
+            boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.02)",
+          }}
+        >
+          {/* Left: Sidebar Toggle + Breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title="Toggle Menu"
               style={{
+                background: "none",
+                border: "1px solid var(--border-light)",
+                borderRadius: "6px",
                 width: "32px",
                 height: "32px",
-                borderRadius: "8px",
-                backgroundColor: "var(--green-500)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-              </svg>
-            </div>
-            <div>
-              <div style={{ color: "#ffffff", fontWeight: "700", fontSize: "1.1rem", letterSpacing: "-0.01em", lineHeight: 1.1 }}>
-                devTracker
-              </div>
-              <div style={{ color: "var(--green-200)", fontSize: "0.68rem", fontWeight: "500", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                Developer Workspace
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Center: Search / Filter input (Hidden gracefully on tablet/mobile) */}
-        <div style={{ display: isTablet ? "none" : "flex", alignItems: "center", gap: "0.5rem", flex: 1, maxWidth: "380px", margin: "0 1.5rem" }}>
-          <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center" }}>
-            <svg
-              style={{ position: "absolute", left: "12px", color: "var(--green-200)", pointerEvents: "none" }}
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input
-              type="text"
-              placeholder="Cari task, tiket, atau blocker..."
-              style={{
-                width: "100%",
-                padding: "0.5rem 1rem 0.5rem 2.25rem",
-                borderRadius: "8px",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                backgroundColor: "rgba(2, 44, 34, 0.45)",
-                color: "#ffffff",
-                fontSize: "0.85rem",
-                outline: "none",
-                fontFamily: "inherit",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Right Status Indicator & Authenticated User Profile */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
-          {/* Live API Status Pill */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.35rem 0.75rem",
-              borderRadius: "var(--radius-full)",
-              backgroundColor: apiStatus.state === "online" ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)",
-              border: `1px solid ${apiStatus.state === "online" ? "var(--green-400)" : "var(--red-500)"}`,
-            }}
-          >
-            <span
-              className={apiStatus.state === "online" ? "animate-pulse" : ""}
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor: apiStatus.state === "online" ? "var(--green-400)" : "var(--red-500)",
-                display: "inline-block",
-              }}
-            ></span>
-            <span style={{ fontSize: "0.75rem", fontWeight: "600", color: "#ffffff" }}>
-              API: {apiStatus.state === "online" ? `ONLINE (${apiStatus.latency}ms)` : apiStatus.state.toUpperCase()}
-            </span>
-          </div>
-
-          {/* User Profile & Logout Dropdown */}
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.6rem",
-                background: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "8px",
-                padding: "0.3rem 0.6rem 0.3rem 0.4rem",
                 cursor: "pointer",
-                color: "#ffffff",
+                color: "var(--text-main)",
               }}
             >
-              <div
-                style={{
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "50%",
-                  backgroundColor: "var(--green-600)",
-                  border: "2px solid var(--green-400)",
-                  color: "#ffffff",
-                  fontWeight: "700",
-                  fontSize: "0.8rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {currentUser?.full_name ? currentUser.full_name[0].toUpperCase() : "U"}
-              </div>
-              <div style={{ textAlign: "left", display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: "0.82rem", fontWeight: "700", lineHeight: 1.1 }}>{currentUser?.full_name}</span>
-                <span style={{ fontSize: "0.68rem", color: "var(--green-200)" }}>
-                  {currentUser?.role_name || currentUser?.system_role}
-                </span>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
 
-            {/* Dropdown Menu */}
-            {userDropdownOpen && (
-              <div
-                className="animate-fade-in"
+            {/* Quick Search */}
+            <div style={{ position: "relative", width: "240px", display: isTablet ? "none" : "block" }}>
+              <input
+                type="text"
+                placeholder="Cari task, dokumen, fitur... ⌘K"
                 style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "42px",
-                  width: "230px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "var(--radius-md)",
-                  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
+                  width: "100%",
+                  padding: "0.4rem 0.6rem 0.4rem 1.85rem",
+                  fontSize: "0.8rem",
+                  borderRadius: "6px",
                   border: "1px solid var(--border-light)",
-                  padding: "0.5rem",
-                  zIndex: 50,
+                  backgroundColor: "#f8fafc",
+                  outline: "none",
                 }}
+              />
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--text-subtle)"
+                strokeWidth="2"
+                style={{ position: "absolute", left: "8px", top: "50%", transform: "translateY(-50%)" }}
               >
-                <div style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--border-light)", marginBottom: "0.25rem" }}>
-                  <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "var(--text-main)" }}>{currentUser?.full_name}</div>
-                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", wordBreak: "break-all" }}>{currentUser?.email}</div>
-                  <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "0.65rem", padding: "0.1rem 0.4rem", borderRadius: "4px", backgroundColor: "var(--green-50)", color: "var(--green-700)", fontWeight: "700" }}>
-                      {currentUser?.system_role}
-                    </span>
-                    {currentUser?.role_name && (
-                      <span
-                        style={{
-                          fontSize: "0.65rem",
-                          padding: "0.1rem 0.4rem",
-                          borderRadius: "4px",
-                          backgroundColor: roleBadge?.bg || "var(--bg-subtle)",
-                          color: roleBadge?.color || "var(--text-muted)",
-                          fontWeight: "700",
-                        }}
-                      >
-                        {currentUser?.role_name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    padding: "0.5rem 0.75rem",
-                    borderRadius: "6px",
-                    border: "none",
-                    backgroundColor: "transparent",
-                    color: "var(--red-500)",
-                    fontSize: "0.82rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--red-50)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
-                  Keluar (Logout)
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* ============================================================ */}
-      {/* 2. BODY LAYOUT (Sticky Sidebar + Scrollable Content Area) */}
-      {/* ============================================================ */}
-      <div style={{ display: "flex", flex: 1, height: "calc(100vh - 64px)", overflow: "hidden", position: "relative" }}>
-        {/* Tablet / Mobile Drawer Backdrop Overlay */}
-        {isTablet && sidebarOpen && (
-          <div
-            onClick={() => setSidebarOpen(false)}
-            style={{
-              position: "fixed",
-              top: "64px",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(2, 44, 34, 0.5)",
-              backdropFilter: "blur(2px)",
-              zIndex: 55,
-              transition: "opacity 0.2s ease",
-            }}
-          />
-        )}
-
-        {/* 2A. DYNAMIC SIDEBAR (Width: 256px Buka, 68px Tutup / Overlay on Tablet) */}
-        <aside
-          style={{
-            backgroundColor: "var(--green-950)",
-            color: "#ffffff",
-            display: "flex",
-            flexDirection: "column",
-            borderRight: "1px solid rgba(255, 255, 255, 0.08)",
-            overflowY: "auto",
-            overflowX: "hidden",
-            boxSizing: "border-box",
-            ...(isTablet
-              ? {
-                  position: "fixed",
-                  top: "64px",
-                  bottom: 0,
-                  left: 0,
-                  width: "256px",
-                  minWidth: "256px",
-                  maxWidth: "256px",
-                  height: "calc(100vh - 64px)",
-                  zIndex: 60,
-                  transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
-                  transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: sidebarOpen ? "4px 0 24px rgba(0, 0, 0, 0.35)" : "none",
-                }
-              : {
-                  position: "relative",
-                  height: "100%",
-                  flexShrink: 0,
-                  width: sidebarOpen ? "256px" : "68px",
-                  minWidth: sidebarOpen ? "256px" : "68px",
-                  maxWidth: sidebarOpen ? "256px" : "68px",
-                  transition: "width 0.22s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.22s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
-                  zIndex: 30,
-                  boxShadow: "none",
-                }),
-          }}
-        >
-          <div
-            style={{
-              padding: (!isTablet && !sidebarOpen) ? "1rem 0.5rem" : "1rem 0.85rem",
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.1rem",
-              boxSizing: "border-box",
-            }}
-          >
-            {/* 1. CORPORATE WORKSPACE & TENANT HEADER */}
-            {(!isTablet && !sidebarOpen) ? (
-              <div
-                title={`Workspace: Core & Apps Support\nRole: ${currentUser?.role_name || "Developer"} (${currentUser?.system_role})`}
-                style={{
-                  width: "42px",
-                  height: "42px",
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                  border: "1px solid rgba(16, 185, 129, 0.35)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto",
-                  cursor: "default",
-                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.25)",
-                }}
-              >
-                <span style={{ fontSize: "0.82rem", fontWeight: "800", color: "#ffffff", letterSpacing: "-0.02em", lineHeight: 1 }}>CAS</span>
-                <span style={{ fontSize: "0.55rem", color: "var(--green-200)", fontWeight: "700", lineHeight: 1, marginTop: "2px" }}>W/S</span>
-              </div>
-            ) : (
-              <div
-                style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.03)",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: "10px",
-                  padding: "10px 12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                  boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                }}
-              >
-                {/* Tenant Title & Logo */}
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div
-                    style={{
-                      width: "34px",
-                      height: "34px",
-                      borderRadius: "8px",
-                      background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                      border: "1px solid rgba(16, 185, 129, 0.35)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                      <path d="M2 17l10 5 10-5"></path>
-                      <path d="M2 12l10 5 10-5"></path>
-                    </svg>
-                  </div>
-                  <div style={{ overflow: "hidden", flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: "0.62rem",
-                        fontWeight: "700",
-                        color: "var(--green-400)",
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        lineHeight: 1,
-                      }}
-                    >
-                      Workspace Aktif
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "0.88rem",
-                        fontWeight: "700",
-                        color: "#ffffff",
-                        marginTop: "3px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      Core & Apps Support
-                    </div>
-                  </div>
-                </div>
-
-                {/* User Profession & System Role */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "6px",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      fontSize: "0.7rem",
-                      color: "rgba(255, 255, 255, 0.85)",
-                      fontWeight: "500",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: "6px",
-                        height: "6px",
-                        borderRadius: "50%",
-                        backgroundColor: "#10b981",
-                        display: "inline-block",
-                      }}
-                    />
-                    <span>{currentUser?.role_name || "Developer"}</span>
-                  </div>
-
-                  <span
-                    style={{
-                      fontSize: "0.62rem",
-                      fontWeight: "700",
-                      padding: "1px 6px",
-                      borderRadius: "4px",
-                      backgroundColor: currentUser?.system_role === "SYS_ADMIN" ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.08)",
-                      color: currentUser?.system_role === "SYS_ADMIN" ? "#34d399" : "rgba(255, 255, 255, 0.65)",
-                      letterSpacing: "0.03em",
-                    }}
-                  >
-                    {currentUser?.system_role}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* 2. CORPORATE CATEGORIZED NAVIGATION */}
-            <div style={{ display: "flex", flexDirection: "column", gap: (isTablet || sidebarOpen) ? "1.1rem" : "0.5rem", overflowY: "auto" }}>
-              {menuGroups.map((group, groupIdx) => {
-                const showFull = isTablet || sidebarOpen;
-
-                return (
-                  <div key={group.id} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    {/* Category Section Header */}
-                    {showFull ? (
-                      <div
-                        style={{
-                          fontSize: "0.64rem",
-                          fontWeight: "700",
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          color: "rgba(255, 255, 255, 0.4)",
-                          padding: "6px 8px 4px 8px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <span>{group.label}</span>
-                        <span style={{ fontSize: "0.6rem", fontWeight: "600", color: "rgba(255, 255, 255, 0.25)" }}>
-                          {group.items.length}
-                        </span>
-                      </div>
-                    ) : (
-                      groupIdx > 0 && (
-                        <div
-                          style={{
-                            height: "1px",
-                            backgroundColor: "rgba(255, 255, 255, 0.08)",
-                            margin: "6px 6px",
-                          }}
-                        />
-                      )
-                    )}
-
-                    {/* Menu Navigation Buttons */}
-                    <nav style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                      {group.items.map((item) => {
-                        const isActive = activeMenu === item.id;
-                        const counts = { totalTasks: "4", myTasks: "2", blockers: "0" };
-                        const badgeValue = item.badge ? item.badge(counts) : null;
-
-                        return (
-                          <button
-                            key={item.id}
-                            onClick={() => handleSelectMenu(item.id)}
-                            title={!showFull ? `${item.label}${badgeValue ? ` (${badgeValue})` : ""}` : undefined}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: !showFull ? "center" : "space-between",
-                              padding: !showFull ? "0" : "0 10px",
-                              width: !showFull ? "40px" : "100%",
-                              height: "36px",
-                              borderRadius: "7px",
-                              border: isActive ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid transparent",
-                              backgroundColor: isActive ? "rgba(16, 185, 129, 0.12)" : "transparent",
-                              color: isActive ? "#ffffff" : "rgba(255, 255, 255, 0.7)",
-                              cursor: "pointer",
-                              fontSize: "0.82rem",
-                              fontWeight: isActive ? "600" : "500",
-                              transition: "all 0.15s ease",
-                              margin: !showFull ? "0 auto" : "0",
-                              position: "relative",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isActive) {
-                                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
-                                e.currentTarget.style.color = "#ffffff";
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isActive) {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.color = "rgba(255, 255, 255, 0.7)";
-                              }
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: !showFull ? "0" : "8px",
-                                justifyContent: !showFull ? "center" : "flex-start",
-                                width: !showFull ? "100%" : "auto",
-                                overflow: "hidden",
-                              }}
-                            >
-                              {/* Left active line indicator for corporate touch */}
-                              {showFull && isActive && (
-                                <div
-                                  style={{
-                                    width: "3px",
-                                    height: "14px",
-                                    borderRadius: "2px",
-                                    backgroundColor: "#10b981",
-                                    marginRight: "-2px",
-                                  }}
-                                />
-                              )}
-                              <span
-                                style={{
-                                  color: isActive ? "#34d399" : "rgba(255, 255, 255, 0.6)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {renderMenuIcon(item.icon)}
-                              </span>
-                              {showFull && (
-                                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {item.label}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Badge Counter */}
-                            {badgeValue && (
-                              showFull ? (
-                                <span
-                                  style={{
-                                    fontSize: "0.65rem",
-                                    fontWeight: "600",
-                                    fontFamily: "var(--font-mono)",
-                                    padding: "1px 6px",
-                                    borderRadius: "9999px",
-                                    backgroundColor: item.badgeColor ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.08)",
-                                    color: item.badgeColor || "rgba(255, 255, 255, 0.85)",
-                                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {badgeValue}
-                                </span>
-                              ) : (
-                                <span
-                                  style={{
-                                    position: "absolute",
-                                    top: "3px",
-                                    right: "3px",
-                                    minWidth: "15px",
-                                    height: "15px",
-                                    borderRadius: "9999px",
-                                    backgroundColor: item.badgeColor || "var(--green-500)",
-                                    color: "#ffffff",
-                                    fontSize: "0.58rem",
-                                    fontWeight: "700",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    padding: "0 2px",
-                                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
-                                  }}
-                                >
-                                  {badgeValue}
-                                </span>
-                              )
-                            )}
-                          </button>
-                        );
-                      })}
-                    </nav>
-                  </div>
-                );
-              })}
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
             </div>
           </div>
-        </aside>
 
-        {/* ============================================================ */}
-        {/* 3. MAIN CONTENT (Independent Scroll, 24px Padding, Border Halus) */}
-        {/* ============================================================ */}
-        <main
-          style={{
-            flex: 1,
-            height: "100%",
-            backgroundColor: "var(--bg-canvas)",
-            padding: "24px",
-            overflowY: "auto",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ maxWidth: "1360px", margin: "0 auto", width: "100%" }}>
-            {/* Header Title & User Welcome */}
+          {/* Right: Status Pill + User Profile */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            {/* Live Health Status */}
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "1.75rem",
-                flexWrap: "wrap",
-                gap: "1rem",
+                alignItems: "center",
+                gap: "6px",
+                padding: "3px 9px",
+                borderRadius: "9999px",
+                backgroundColor: apiStatus.state === "online" ? "#ecfdf5" : "#fef2f2",
+                color: apiStatus.state === "online" ? "#047857" : "#991b1b",
+                fontSize: "0.74rem",
+                fontWeight: "700",
+                border: `1px solid ${apiStatus.state === "online" ? "#a7f3d0" : "#fecaca"}`,
               }}
             >
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.03em" }}>
-                  Selamat Datang, {currentUser?.full_name} 👋
-                </h1>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.92rem", marginTop: "0.25rem" }}>
-                  Role Profesi: <strong style={{ color: "var(--green-700)" }}>{currentUser?.role_name || "Developer"}</strong> &bull; Level: <strong>{currentUser?.system_role}</strong>
-                </p>
-              </div>
-
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <button
-                  onClick={() => alert("Fitur Tambah Task Baru terhubung ke PostgreSQL API.")}
-                  style={{
-                    backgroundColor: "var(--green-600)",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "0.6rem 1.1rem",
-                    fontSize: "0.88rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                    boxShadow: "var(--shadow-green)",
-                    transition: "background-color 0.2s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--green-700)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "var(--green-600)")}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  Buat Task Baru
-                </button>
-              </div>
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  backgroundColor: apiStatus.state === "online" ? "#10b981" : "#ef4444",
+                }}
+                className={apiStatus.state === "online" ? "animate-pulse" : ""}
+              ></span>
+              <span>API {apiStatus.state === "online" ? `${apiStatus.latency}ms Online` : "Offline"}</span>
             </div>
 
-            {/* ============================================================ */}
-            {/* VIEW CONTENT BASED ON ACTIVE SIDEBAR SELECTION */}
-            {/* ============================================================ */}
-
-            {/* 1. VIEW: REQUIREMENTS (Khusus System Analyst & Tech Lead) */}
-            {activeMenu === "requirements" && (
-              <div className="animate-fade-in" style={{ backgroundColor: "#ffffff", borderRadius: "var(--radius-lg)", padding: "1.75rem", border: "1px solid var(--border-light)", boxShadow: "var(--shadow-sm)", marginBottom: "2rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-                  <div>
-                    <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)" }}>Dokumen Spesifikasi & BRD / FSD</h2>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Akses khusus System Analyst & Tim Arsitektur untuk menyusun spesifikasi fitur.</p>
+            {/* User Dropdown */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "9px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                  borderRadius: "6px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    backgroundColor: "var(--green-100)",
+                    color: "var(--green-800)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "800",
+                    fontSize: "0.78rem",
+                    border: "1px solid var(--green-300)",
+                  }}
+                >
+                  {currentUser?.full_name?.split(" ").map((n) => n[0]).slice(0, 2).join("") || "U"}
+                </div>
+                <div style={{ textAlign: "left", display: isTablet ? "none" : "block" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "var(--text-main)" }}>
+                    {currentUser?.full_name}
                   </div>
-                  <button style={{ backgroundColor: "var(--blue-500)", color: "#ffffff", border: "none", borderRadius: "6px", padding: "0.45rem 0.9rem", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}>+ Buat Dokumen Baru</button>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {[
-                    { id: "BRD-01", title: "Business Requirement Document: Autentikasi JWT & Role Aplikasi", author: "Sarah Analyst", date: "19 Okt 2026", status: "Approved" },
-                    { id: "FSD-02", title: "Functional Spec: Task Progress Tracking & Blocker Workflow", author: "Sarah Analyst", date: "20 Okt 2026", status: "In Review" },
-                    { id: "API-03", title: "API Contract: Project Membership & Activity Logging", author: "System Analyst", date: "21 Okt 2026", status: "Draft" },
-                  ].map((doc) => (
-                    <div key={doc.id} style={{ padding: "1rem", border: "1px solid var(--border-light)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.25rem" }}>
-                          <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--blue-500)", backgroundColor: "var(--blue-50)", padding: "0.15rem 0.45rem", borderRadius: "4px" }}>{doc.id}</span>
-                          <span style={{ fontWeight: "600", fontSize: "0.92rem", color: "var(--text-main)" }}>{doc.title}</span>
-                        </div>
-                        <div style={{ fontSize: "0.78rem", color: "var(--text-subtle)" }}>Penulis: {doc.author} &bull; Diperbarui: {doc.date}</div>
-                      </div>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "700", padding: "0.2rem 0.6rem", borderRadius: "9999px", backgroundColor: doc.status === "Approved" ? "var(--green-50)" : "var(--amber-50)", color: doc.status === "Approved" ? "var(--green-700)" : "var(--amber-500)" }}>{doc.status}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 2. VIEW: TESTING QUEUE (Khusus QA Engineer) */}
-            {activeMenu === "testing_queue" && (
-              <div className="animate-fade-in" style={{ backgroundColor: "#ffffff", borderRadius: "var(--radius-lg)", padding: "1.75rem", border: "1px solid var(--border-light)", boxShadow: "var(--shadow-sm)", marginBottom: "2rem" }}>
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)" }}>Antrean Pengujian QA (Ready for QA)</h2>
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Daftar fitur dan bug fix yang sudah siap diuji oleh tim QA Engineer.</p>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {[
-                    { id: "QA-01", task: "Verifikasi login multi-role dengan token JWT dan case-insensitive email", dev: "Budi Developer", env: "Staging WSL", priority: "High" },
-                    { id: "QA-02", task: "Uji coba hot reload frontend Next.js dan bind port 3002", dev: "Frontend Team", env: "Local Dev", priority: "Medium" },
-                  ].map((item) => (
-                    <div key={item.id} style={{ padding: "1rem", border: "1px solid var(--border-light)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontWeight: "600", fontSize: "0.92rem", color: "var(--text-main)", marginBottom: "0.25rem" }}>{item.task}</div>
-                        <div style={{ fontSize: "0.78rem", color: "var(--text-subtle)" }}>Developer: {item.dev} &bull; Environment: {item.env}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button style={{ backgroundColor: "var(--green-600)", color: "#ffffff", border: "none", borderRadius: "6px", padding: "0.35rem 0.75rem", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer" }}>✓ Lulus (Pass)</button>
-                        <button style={{ backgroundColor: "var(--red-500)", color: "#ffffff", border: "none", borderRadius: "6px", padding: "0.35rem 0.75rem", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer" }}>✗ Tolak (Reject)</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 3. VIEW: ROADMAP & TIMELINE (Khusus PM & Tech Lead) */}
-            {activeMenu === "roadmap" && (
-              <div className="animate-fade-in" style={{ backgroundColor: "#ffffff", borderRadius: "var(--radius-lg)", padding: "1.75rem", border: "1px solid var(--border-light)", boxShadow: "var(--shadow-sm)", marginBottom: "2rem" }}>
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)" }}>Project Roadmap & Milestone Sprint</h2>
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Pelacakan target tanggal, milestone rilis, dan beban kerja tim.</p>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1rem" }}>
-                  {[
-                    { phase: "Sprint 1: Core Setup", progress: "100%", status: "Selesai", items: "Docker, Schema PostgreSQL, JWT Backend, Login UI" },
-                    { phase: "Sprint 2: Task CRUD & RBAC", progress: "40%", status: "Sedang Berjalan", items: "CRUD Task, Assignee, Status Updates, Activity Audit" },
-                    { phase: "Sprint 3: Blocker Workflow", progress: "0%", status: "Rencana", items: "Eskalasi Blocker, Notifikasi Tim, Filter Dashboard" },
-                  ].map((sprint, i) => (
-                    <div key={i} style={{ padding: "1.25rem", border: "1px solid var(--border-light)", borderRadius: "8px", backgroundColor: "var(--bg-subtle)" }}>
-                      <div style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--green-700)", textTransform: "uppercase" }}>{sprint.status}</div>
-                      <div style={{ fontSize: "1rem", fontWeight: "700", color: "var(--text-main)", margin: "0.35rem 0 0.5rem" }}>{sprint.phase}</div>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>{sprint.items}</div>
-                      <div style={{ height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden" }}>
-                        <div style={{ width: sprint.progress, height: "100%", backgroundColor: "var(--green-600)" }}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 4. VIEW: USER MANAGEMENT (Khusus SysAdmin) */}
-            {activeMenu === "user_management" && (
-              <div className="animate-fade-in" style={{ backgroundColor: "#ffffff", borderRadius: "var(--radius-lg)", padding: "1.75rem", border: "1px solid var(--border-light)", boxShadow: "var(--shadow-sm)", marginBottom: "2rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-                  <div>
-                    <h2 style={{ fontSize: "1.2rem", fontWeight: "700", color: "var(--text-main)" }}>Manajemen Pengguna & Hak Akses</h2>
-                    <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Akses administrator level sistem (`SYS_ADMIN`) untuk mengelola peran dan status anggota.</p>
+                  <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                    {currentUser?.role_name || "Developer"} &bull; {currentUser?.system_role}
                   </div>
-                  <button style={{ backgroundColor: "var(--green-600)", color: "#ffffff", border: "none", borderRadius: "6px", padding: "0.45rem 0.9rem", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer" }}>+ Tambah User Baru</button>
                 </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.86rem" }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid var(--border-light)", textAlign: "left", color: "var(--text-muted)" }}>
-                        <th style={{ padding: "0.6rem 0.5rem" }}>Nama Pengguna</th>
-                        <th style={{ padding: "0.6rem 0.5rem" }}>Email</th>
-                        <th style={{ padding: "0.6rem 0.5rem" }}>Role Aplikasi</th>
-                        <th style={{ padding: "0.6rem 0.5rem" }}>Level Sistem</th>
-                        <th style={{ padding: "0.6rem 0.5rem" }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {demoAccounts.map((u, i) => (
-                        <tr key={i} style={{ borderBottom: "1px solid var(--border-light)" }}>
-                          <td style={{ padding: "0.75rem 0.5rem", fontWeight: "600" }}>{u.role.split(" (")[0]} User</td>
-                          <td style={{ padding: "0.75rem 0.5rem", color: "var(--text-muted)" }}>{u.email}</td>
-                          <td style={{ padding: "0.75rem 0.5rem" }}><span style={{ backgroundColor: "var(--green-50)", color: "var(--green-700)", padding: "0.2rem 0.5rem", borderRadius: "4px", fontWeight: "600", fontSize: "0.75rem" }}>{u.role}</span></td>
-                          <td style={{ padding: "0.75rem 0.5rem", fontWeight: "600" }}>{u.id === "admin" ? "SYS_ADMIN" : "USER"}</td>
-                          <td style={{ padding: "0.75rem 0.5rem", color: "var(--green-700)", fontWeight: "700" }}>ACTIVE</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+
+              {userDropdownOpen && (
+                <div
+                  className="dash-card animate-fade-in"
+                  style={{
+                    position: "absolute",
+                    top: "42px",
+                    right: 0,
+                    width: "210px",
+                    zIndex: 100,
+                    padding: "6px",
+                  }}
+                >
+                  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-light)" }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "var(--text-main)" }}>
+                      {currentUser?.full_name}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{currentUser?.email}</div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: "4px",
+                      border: "none",
+                      background: "none",
+                      color: "#dc2626",
+                      fontSize: "0.82rem",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginTop: "4px",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fef2f2")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Keluar (Logout)</span>
+                  </button>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* 3. MAIN CONTENT BODY */}
+        <main style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+          <div style={{ maxWidth: "1360px", margin: "0 auto" }}>
+            {/* GENERAL PARAMETER VIEW */}
+            {activeMenu === "general_parameters" && (
+              <GeneralParameterView authToken={authToken} />
             )}
 
-            {/* 5. DEFAULT DASHBOARD CARDS (Rendered on Dashboard / Task Tracker) */}
+            {/* DASHBOARD & TASKS VIEW */}
             {(activeMenu === "dashboard" || activeMenu === "tasks" || activeMenu === "my_tasks") && (
-              <>
-                {/* METRIC CARDS */}
+              <div className="animate-fade-in">
+                {/* Dash UI Header Banner */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "1.5rem",
+                    flexWrap: "wrap",
+                    gap: "1rem",
+                  }}
+                >
+                  <div>
+                    <h1 style={{ fontSize: "1.55rem", fontWeight: "800", color: "var(--text-main)", letterSpacing: "-0.02em" }}>
+                      Dashboard Progres Developer
+                    </h1>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "3px" }}>
+                      Ikhtisar metrik tugas, blocker, dan pembaruan rilis tim engineering.
+                    </p>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => alert("Fitur Tambah Task Baru terhubung ke PostgreSQL API.")}
+                      className="dash-btn dash-btn-primary"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      <span>Buat Task Baru</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* KPI METRIC CARDS (DASH UI STYLE) */}
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-                    gap: "1.25rem",
-                    marginBottom: "2rem",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "1rem",
+                    marginBottom: "1.75rem",
                   }}
                 >
                   {[
@@ -1543,185 +949,429 @@ export default function HomePage() {
                       label: "Total Task Terdaftar",
                       val: "4",
                       badge: "100%",
-                      desc: "Seluruh task tim",
-                      borderTop: "3px solid var(--green-600)",
+                      desc: "Seluruh task aktif tim",
+                      color: "var(--green-700)",
+                      bgLight: "var(--green-50)",
                     },
                     {
                       label: "Task Milik Saya",
                       val: activeMenu === "my_tasks" ? "2" : "1",
                       badge: "Active",
-                      desc: `Ditugaskan ke ${currentUser?.full_name}`,
-                      borderTop: "3px solid var(--blue-500)",
+                      desc: `Ditugaskan ke Anda`,
+                      color: "#2563eb",
+                      bgLight: "#eff6ff",
                     },
                     {
-                      label: "Blocker Terdeteksi",
+                      label: "Blocker & Kendala",
                       val: "0",
                       badge: "Clear",
-                      badgeColor: "var(--green-700)",
-                      desc: "Semua rintangan teratasi",
-                      borderTop: "3px solid var(--green-500)",
+                      desc: "Semua kendala teratasi",
+                      color: "#047857",
+                      bgLight: "#ecfdf5",
                     },
                     {
                       label: "Selesai (Done)",
                       val: "3",
                       badge: "75%",
                       desc: "Telah lolos verifikasi",
-                      borderTop: "3px solid var(--green-500)",
+                      color: "#7c3aed",
+                      bgLight: "#faf5ff",
                     },
-                  ].map((card, i) => (
+                  ].map((metric, i) => (
                     <div
                       key={i}
+                      className="dash-card"
                       style={{
-                        backgroundColor: "var(--bg-surface)",
-                        borderRadius: "var(--radius-md)",
-                        padding: "1.25rem",
-                        border: "1px solid var(--border-light)",
-                        borderTop: card.borderTop,
-                        boxShadow: "var(--shadow-sm)",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
+                        padding: "1.1rem 1.25rem",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-muted)" }}>{card.label}</span>
+                        <span style={{ fontSize: "0.78rem", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase" }}>
+                          {metric.label}
+                        </span>
                         <span
                           style={{
-                            fontSize: "0.72rem",
+                            fontSize: "0.7rem",
                             fontWeight: "700",
-                            color: card.badgeColor || "var(--green-700)",
-                            backgroundColor: "var(--green-50)",
-                            padding: "0.15rem 0.5rem",
-                            borderRadius: "var(--radius-full)",
+                            color: metric.color,
+                            backgroundColor: metric.bgLight,
+                            padding: "2px 7px",
+                            borderRadius: "9999px",
                           }}
                         >
-                          {card.badge}
+                          {metric.badge}
                         </span>
                       </div>
-                      <div style={{ fontSize: "1.85rem", fontWeight: "800", color: "var(--text-main)", margin: "0.6rem 0 0.2rem" }}>
-                        {card.val}
+                      <div style={{ fontSize: "1.85rem", fontWeight: "800", color: "var(--text-main)", margin: "0.5rem 0 0.15rem" }}>
+                        {metric.val}
                       </div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--text-subtle)" }}>{card.desc}</div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-subtle)" }}>{metric.desc}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* TASK TRACKER SECTION */}
-                <div
-                  style={{
-                    backgroundColor: "var(--bg-surface)",
-                    borderRadius: "var(--radius-lg)",
-                    border: "1px solid var(--border-light)",
-                    boxShadow: "var(--shadow-sm)",
-                    padding: "1.5rem",
-                    marginBottom: "2rem",
-                  }}
-                >
-                  {/* Header and Filter Tabs */}
+                {/* TASK TRACKER TABLE CONTAINER (DASH UI SINGLE CARD) */}
+                <div className="dash-card">
+                  {/* Table Header & Segmented Tabs */}
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                      gap: "1rem",
+                      padding: "0 1.25rem",
                       borderBottom: "1px solid var(--border-light)",
-                      paddingBottom: "1rem",
-                      marginBottom: "1.25rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "0.5rem",
+                      backgroundColor: "#fafbfc",
                     }}
                   >
-                    <div>
-                      <h2 style={{ fontSize: "1.15rem", fontWeight: "700", color: "var(--text-main)" }}>
-                        {activeMenu === "my_tasks" ? "Task Khusus yang Ditugaskan ke Anda" : "Daftar Task & Progres Terkini"}
-                      </h2>
-                      <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>
-                        Dikelompokkan berdasarkan status pengerjaan developer.
-                      </p>
-                    </div>
-
-                    {/* Filter Tabs */}
-                    <div style={{ display: "flex", gap: "0.35rem", backgroundColor: "var(--bg-subtle)", padding: "0.25rem", borderRadius: "8px" }}>
+                    <div style={{ display: "flex", gap: "4px" }}>
                       {[
-                        { id: "all", label: "Semua Task" },
-                        { id: "in_progress", label: "Sedang Berjalan" },
-                        { id: "done", label: "Selesai" },
+                        { id: "all", label: "Semua Task", count: 4 },
+                        { id: "in_progress", label: "In Progress", count: 1 },
+                        { id: "done", label: "Done", count: 3 },
+                        { id: "blocked", label: "Blocked", count: 0 },
                       ].map((tab) => (
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
                           style={{
-                            padding: "0.4rem 0.8rem",
-                            borderRadius: "6px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "0.85rem 0.95rem",
+                            background: "none",
                             border: "none",
-                            fontSize: "0.78rem",
-                            fontWeight: activeTab === tab.id ? "700" : "500",
-                            backgroundColor: activeTab === tab.id ? "#ffffff" : "transparent",
+                            borderBottom: activeTab === tab.id ? "2px solid var(--green-600)" : "2px solid transparent",
                             color: activeTab === tab.id ? "var(--green-700)" : "var(--text-muted)",
-                            boxShadow: activeTab === tab.id ? "var(--shadow-sm)" : "none",
+                            fontWeight: activeTab === tab.id ? "700" : "500",
+                            fontSize: "0.82rem",
                             cursor: "pointer",
-                            transition: "all 0.15s ease",
                           }}
                         >
-                          {tab.label}
+                          <span>{tab.label}</span>
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: "700",
+                              padding: "1px 6px",
+                              borderRadius: "9999px",
+                              backgroundColor: activeTab === tab.id ? "var(--green-100)" : "#e2e8f0",
+                              color: activeTab === tab.id ? "var(--green-800)" : "var(--text-muted)",
+                            }}
+                          >
+                            {tab.count}
+                          </span>
                         </button>
                       ))}
                     </div>
+
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                      Menampilkan <strong>{filteredTasks.length}</strong> task
+                    </div>
                   </div>
 
-                  {/* Task Items */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    {filteredTasks.map((task) => (
-                      <div
-                        key={task.id}
+                  {/* Filter & Search Toolbar */}
+                  <div
+                    style={{
+                      padding: "0.75rem 1.25rem",
+                      borderBottom: "1px solid var(--border-light)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor: "#ffffff",
+                    }}
+                  >
+                    <div style={{ position: "relative", minWidth: "260px" }}>
+                      <input
+                        type="text"
+                        placeholder="Filter judul task, id, atau project..."
+                        value={taskSearchQuery}
+                        onChange={(e) => setTaskSearchQuery(e.target.value)}
                         style={{
+                          width: "100%",
+                          padding: "0.45rem 0.65rem 0.45rem 1.9rem",
+                          fontSize: "0.8rem",
+                          borderRadius: "6px",
                           border: "1px solid var(--border-light)",
-                          borderRadius: "var(--radius-md)",
-                          padding: "1rem 1.25rem",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "1rem",
-                          backgroundColor: "#ffffff",
-                          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                          outline: "none",
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = "var(--green-500)";
-                          e.currentTarget.style.boxShadow = "var(--shadow-md)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = "var(--border-light)";
-                          e.currentTarget.style.boxShadow = "none";
-                        }}
+                      />
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="var(--text-subtle)"
+                        strokeWidth="2"
+                        style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)" }}
                       >
-                        {/* Left: ID & Title */}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.35rem" }}>
-                            <span
-                              style={{
-                                fontFamily: "var(--font-mono)",
-                                fontSize: "0.75rem",
-                                fontWeight: "600",
-                                color: "var(--text-muted)",
-                                backgroundColor: "var(--bg-subtle)",
-                                padding: "0.15rem 0.4rem",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              {task.id}
-                            </span>
-                            <span style={{ fontSize: "0.75rem", color: "var(--text-subtle)", fontWeight: "500" }}>
-                              &bull; {task.project}
-                            </span>
-                          </div>
-                          <div style={{ fontWeight: "600", fontSize: "0.95rem", color: "var(--text-main)" }}>
-                            {task.title}
-                          </div>
-                        </div>
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                    </div>
+                  </div>
 
-                        {/* Right: Meta & Status Badge */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
-                          {/* Assignee Avatar */}
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  {/* Dash UI Table */}
+                  <div style={{ overflowX: "auto" }}>
+                    <table className="dash-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: "100px" }}>ID Task</th>
+                          <th>Judul Task & Deskripsi</th>
+                          <th style={{ width: "140px" }}>Proyek</th>
+                          <th style={{ width: "160px" }}>Assignee</th>
+                          <th style={{ width: "100px" }}>Prioritas</th>
+                          <th style={{ width: "110px", textAlign: "center" }}>Status</th>
+                          <th style={{ width: "110px" }}>Target</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTasks.map((t) => (
+                          <tr key={t.id}>
+                            <td>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-mono)",
+                                  fontSize: "0.75rem",
+                                  fontWeight: "700",
+                                  backgroundColor: "var(--bg-subtle)",
+                                  color: "var(--text-main)",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #e2e8f0",
+                                }}
+                              >
+                                {t.id}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: "600", color: "var(--text-main)" }}>{t.title}</div>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t.project}</span>
+                            </td>
+                            <td>
+                              <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                                <div
+                                  style={{
+                                    width: "24px",
+                                    height: "24px",
+                                    borderRadius: "50%",
+                                    backgroundColor: "var(--green-100)",
+                                    color: "var(--green-800)",
+                                    fontSize: "0.68rem",
+                                    fontWeight: "800",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: "1px solid var(--green-200)",
+                                  }}
+                                >
+                                  {t.assigneeInitials}
+                                </div>
+                                <span style={{ fontSize: "0.8rem", color: "var(--text-main)", fontWeight: "500" }}>
+                                  {t.assignee}
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`dash-badge ${t.priority === "high" ? "dash-badge-danger" : "dash-badge-warning"}`}>
+                                {t.priority === "high" ? "P1 High" : "P2 Med"}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "center" }}>
+                              <span className={`dash-badge ${t.status === "done" ? "dash-badge-success" : "dash-badge-info"}`}>
+                                {t.status === "done" ? "Selesai" : "In Progress"}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{t.dueDate}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Table Footer */}
+                  <div
+                    style={{
+                      padding: "0.75rem 1.25rem",
+                      borderTop: "1px solid var(--border-light)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "0.78rem",
+                      color: "var(--text-muted)",
+                      backgroundColor: "#fafbfc",
+                    }}
+                  >
+                    <span>Menampilkan 1-4 dari 4 task</span>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button disabled className="dash-btn dash-btn-secondary" style={{ padding: "0.3rem 0.6rem", fontSize: "0.75rem" }}>
+                        Sebelumnya
+                      </button>
+                      <button disabled className="dash-btn dash-btn-secondary" style={{ padding: "0.3rem 0.6rem", fontSize: "0.75rem" }}>
+                        Selanjutnya
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* REQUIREMENTS VIEW (DASH UI TABLE) */}
+            {activeMenu === "requirements" && (
+              <div className="dash-card animate-fade-in">
+                <div style={{ padding: "1.1rem 1.35rem", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--text-main)" }}>Dokumen Spesifikasi (BRD & FSD)</h2>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Spesifikasi kebutuhan bisnis dan analisa teknis sistem.</p>
+                  </div>
+                  <button className="dash-btn dash-btn-primary">+ Buat Dokumen Baru</button>
+                </div>
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "110px" }}>Nomor Dokumen</th>
+                      <th>Judul Dokumen</th>
+                      <th style={{ width: "160px" }}>Penulis</th>
+                      <th style={{ width: "130px" }}>Tanggal</th>
+                      <th style={{ width: "110px", textAlign: "center" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { id: "BRD-01", title: "Business Requirement: Autentikasi JWT & Role Aplikasi", author: "Sarah Analyst", date: "19 Okt 2026", status: "Approved" },
+                      { id: "FSD-02", title: "Functional Spec: Task Progress Tracking & Blocker Workflow", author: "Sarah Analyst", date: "20 Okt 2026", status: "In Review" },
+                      { id: "API-03", title: "API Contract: Project Membership & Activity Logging", author: "Tech Lead", date: "21 Okt 2026", status: "Draft" },
+                    ].map((doc) => (
+                      <tr key={doc.id}>
+                        <td><span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", fontWeight: "700" }}>{doc.id}</span></td>
+                        <td style={{ fontWeight: "600" }}>{doc.title}</td>
+                        <td style={{ color: "var(--text-muted)" }}>{doc.author}</td>
+                        <td style={{ color: "var(--text-muted)" }}>{doc.date}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className={`dash-badge ${doc.status === "Approved" ? "dash-badge-success" : doc.status === "In Review" ? "dash-badge-warning" : "dash-badge-neutral"}`}>
+                            {doc.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* TESTING QUEUE VIEW (DASH UI TABLE) */}
+            {activeMenu === "testing_queue" && (
+              <div className="dash-card animate-fade-in">
+                <div style={{ padding: "1.1rem 1.35rem", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--text-main)" }}>Antrean Uji QA (Quality Assurance)</h2>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Daftar fitur dan perbaikan yang siap diverifikasi QA Engineer.</p>
+                  </div>
+                  <button className="dash-btn dash-btn-primary">+ Log Hasil Uji</button>
+                </div>
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "110px" }}>Test Case</th>
+                      <th>Fitur / Task</th>
+                      <th style={{ width: "130px" }}>Lingkungan</th>
+                      <th style={{ width: "140px" }}>Tester</th>
+                      <th style={{ width: "110px", textAlign: "center" }}>Status Uji</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { id: "TC-201", title: "Validasi login dengan kredensial salah (401 Unauthorized)", env: "Staging", tester: "Qonita Quality", status: "Pass" },
+                      { id: "TC-202", title: "Pengujian filter parameter per group dan pencarian keyword", env: "Local Docker", tester: "Qonita Quality", status: "Ready" },
+                    ].map((tc) => (
+                      <tr key={tc.id}>
+                        <td><span style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", fontWeight: "700" }}>{tc.id}</span></td>
+                        <td style={{ fontWeight: "600" }}>{tc.title}</td>
+                        <td><span className="dash-badge dash-badge-neutral">{tc.env}</span></td>
+                        <td style={{ color: "var(--text-muted)" }}>{tc.tester}</td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className={`dash-badge ${tc.status === "Pass" ? "dash-badge-success" : "dash-badge-warning"}`}>
+                            {tc.status === "Pass" ? "Passed" : "Siap Uji"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* ROADMAP & TIMELINE VIEW (DASH UI TABLE) */}
+            {activeMenu === "roadmap" && (
+              <div className="dash-card animate-fade-in">
+                <div style={{ padding: "1.1rem 1.35rem", borderBottom: "1px solid var(--border-light)" }}>
+                  <h2 style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--text-main)" }}>Roadmap & Milestone Rilis</h2>
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Jadwal rilis tahapan proyek dan progres penyelesaian fitur.</p>
+                </div>
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "120px" }}>Sprint</th>
+                      <th>Fase / Milestone</th>
+                      <th style={{ width: "180px" }}>Jumlah Task</th>
+                      <th style={{ width: "200px" }}>Progres</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { sprint: "Sprint 1", phase: "Inisialisasi & Setup Autentikasi", items: "3 Task Selesai", progress: "100%" },
+                      { sprint: "Sprint 2", phase: "Unified Lookup General Parameter", items: "1 Task Aktif", progress: "90%" },
+                      { sprint: "Sprint 3", phase: "Task Management & Blocker Activity Log", items: "Belum Dimulai", progress: "0%" },
+                    ].map((sp) => (
+                      <tr key={sp.sprint}>
+                        <td><span style={{ fontWeight: "700" }}>{sp.sprint}</span></td>
+                        <td style={{ fontWeight: "600" }}>{sp.phase}</td>
+                        <td style={{ color: "var(--text-muted)" }}>{sp.items}</td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <div style={{ flex: 1, height: "6px", backgroundColor: "#e2e8f0", borderRadius: "9999px", overflow: "hidden" }}>
+                              <div style={{ width: sp.progress, height: "100%", backgroundColor: "var(--green-600)" }}></div>
+                            </div>
+                            <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "var(--text-muted)" }}>{sp.progress}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* USER MANAGEMENT VIEW (DASH UI DIRECTORY TABLE) */}
+            {activeMenu === "user_management" && (
+              <div className="dash-card animate-fade-in">
+                <div style={{ padding: "1.1rem 1.35rem", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--text-main)" }}>Manajemen Pengguna & Hak Akses</h2>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Direktori akun developer dan administrator level sistem.</p>
+                  </div>
+                  <button className="dash-btn dash-btn-primary">+ Tambah User Baru</button>
+                </div>
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th>Nama Pengguna</th>
+                      <th>Email Akun</th>
+                      <th style={{ width: "160px" }}>Role Profesi</th>
+                      <th style={{ width: "130px" }}>Level Sistem</th>
+                      <th style={{ width: "110px", textAlign: "center" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {demoAccounts.map((u, i) => (
+                      <tr key={i}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <div
                               style={{
                                 width: "28px",
@@ -1729,130 +1379,30 @@ export default function HomePage() {
                                 borderRadius: "50%",
                                 backgroundColor: "var(--green-100)",
                                 color: "var(--green-800)",
-                                fontWeight: "700",
-                                fontSize: "0.75rem",
+                                fontSize: "0.72rem",
+                                fontWeight: "800",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                               }}
-                              title={`Assignee: ${task.assignee}`}
                             >
-                              {task.assigneeInitials}
+                              {u.label[0]}
                             </div>
+                            <span style={{ fontWeight: "600" }}>{u.role.split(" (")[0]} User</span>
                           </div>
-
-                          {/* Due Date */}
-                          <div style={{ fontSize: "0.78rem", color: "var(--text-subtle)", minWidth: "75px" }}>
-                            {task.dueDate}
-                          </div>
-
-                          {/* Status Tag */}
-                          <div style={{ minWidth: "115px", textAlign: "right" }}>
-                            {task.status === "done" && (
-                              <span
-                                style={{
-                                  backgroundColor: "var(--green-50)",
-                                  color: "var(--green-700)",
-                                  border: "1px solid var(--green-200)",
-                                  padding: "0.3rem 0.7rem",
-                                  borderRadius: "var(--radius-full)",
-                                  fontSize: "0.75rem",
-                                  fontWeight: "700",
-                                }}
-                              >
-                                ✓ SELESAI
-                              </span>
-                            )}
-                            {task.status === "in_progress" && (
-                              <span
-                                style={{
-                                  backgroundColor: "var(--blue-50)",
-                                  color: "var(--blue-500)",
-                                  border: "1px solid #bfdbfe",
-                                  padding: "0.3rem 0.7rem",
-                                  borderRadius: "var(--radius-full)",
-                                  fontSize: "0.75rem",
-                                  fontWeight: "700",
-                                }}
-                              >
-                                BERJALAN
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                        </td>
+                        <td style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>{u.email}</td>
+                        <td><span className="dash-badge dash-badge-info">{u.role}</span></td>
+                        <td><span style={{ fontWeight: "700", fontSize: "0.78rem" }}>{u.id === "admin" ? "SYS_ADMIN" : "USER"}</span></td>
+                        <td style={{ textAlign: "center" }}>
+                          <span className="dash-badge dash-badge-success">ACTIVE</span>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </div>
-              </>
+                  </tbody>
+                </table>
+              </div>
             )}
-
-            {/* INFRASTRUCTURE & PORT SUMMARY */}
-            <div
-              style={{
-                backgroundColor: "var(--bg-surface)",
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--border-light)",
-                boxShadow: "var(--shadow-sm)",
-                padding: "1.5rem",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                <div>
-                  <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--text-main)" }}>
-                    Sistem & Autentikasi Aktif
-                  </h3>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                    Terhubung ke Go REST API & PostgreSQL melalui Docker Compose WSL (Port terisolasi aman).
-                  </p>
-                </div>
-                <span
-                  style={{
-                    backgroundColor: "var(--green-50)",
-                    color: "var(--green-700)",
-                    fontSize: "0.75rem",
-                    fontWeight: "600",
-                    padding: "0.25rem 0.65rem",
-                    borderRadius: "6px",
-                    border: "1px solid var(--green-200)",
-                  }}
-                >
-                  Sesi: Aktif ({currentUser?.role_name || "Developer"})
-                </span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1rem" }}>
-                <div style={{ padding: "0.85rem", borderRadius: "8px", border: "1px solid var(--border-light)", backgroundColor: "var(--bg-subtle)" }}>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>PENGGUNA AKTIF</div>
-                  <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--green-700)", marginTop: "2px" }}>
-                    {currentUser?.full_name}
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-subtle)", marginTop: "4px" }}>
-                    {currentUser?.email} &bull; {currentUser?.role_name || "SysAdmin"}
-                  </div>
-                </div>
-
-                <div style={{ padding: "0.85rem", borderRadius: "8px", border: "1px solid var(--border-light)", backgroundColor: "var(--bg-subtle)" }}>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>HAK AKSES SIDEBAR</div>
-                  <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--green-700)", marginTop: "2px" }}>
-                    {allowedMenuItems.length} Menu Tersedia
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-subtle)", marginTop: "4px" }}>
-                    Tersaring otomatis berdasarkan role {currentUser?.role_code || "USER"}
-                  </div>
-                </div>
-
-                <div style={{ padding: "0.85rem", borderRadius: "8px", border: "1px solid var(--border-light)", backgroundColor: "var(--bg-subtle)" }}>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>DATABASE POSTGRESQL</div>
-                  <div style={{ fontSize: "1.05rem", fontWeight: "700", color: "var(--green-700)", marginTop: "2px" }}>
-                    localhost:5435
-                  </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-subtle)", marginTop: "4px" }}>
-                    Database: devtracker &bull; Tabel: roles & users
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </main>
       </div>
