@@ -1,0 +1,33 @@
+# Environment variables (Never commit secret files)
+.env
+.env.*
+!.env.example
+
+# Node.js & Frontend Build
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Go & Backend Build
+**/tmp/
+apps/api/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
