@@ -7,6 +7,14 @@ export const SIDEBAR_NAVIGATION = [
     roles: ["*"],
     icon: "dashboard",
   },
+  {
+    id: "general_parameters",
+    label: "Parameter Umum",
+    category: "system",
+    roles: ["*"],
+    systemRoles: ["SYS_ADMIN"],
+    icon: "parameters",
+  },
 
   /* =========================================================================
    * MENU BERIKUTNYA (MENYUSUL SETELAH SETUP ROLE-MENU SELESAI)

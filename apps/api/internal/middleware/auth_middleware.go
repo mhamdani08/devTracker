@@ -46,6 +46,17 @@ func GetClaimsFromContext(ctx context.Context) (*domain.JWTClaims, bool) {
 	return claims, ok
 }
 
+func RequireSysAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := GetClaimsFromContext(r.Context())
+		if !ok || claims.SystemRole != domain.SystemRoleSysAdmin {
+			writeJSONError(w, http.StatusForbidden, "Akses ditolak: Hanya administrator sistem (SYS_ADMIN) yang diizinkan")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
