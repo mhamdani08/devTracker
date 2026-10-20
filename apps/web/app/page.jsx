@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SIDEBAR_NAVIGATION, filterMenuForUser, getRoleBadgeStyle, groupMenuByCategory } from "../lib/navigation";
 import GeneralParameterView from "../components/GeneralParameterView";
+import ProjectsView from "../components/ProjectsView";
 
 export default function HomePage() {
   // Authentication & User State
@@ -248,6 +249,13 @@ export default function HomePage() {
             <rect x="14" y="3" width="7" height="5"></rect>
             <rect x="14" y="12" width="7" height="9"></rect>
             <rect x="3" y="16" width="7" height="5"></rect>
+          </svg>
+        );
+      case "projects":
+        return (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
           </svg>
         );
       case "tasks":
@@ -896,6 +904,11 @@ export default function HomePage() {
             {/* GENERAL PARAMETER VIEW */}
             {activeMenu === "general_parameters" && (
               <GeneralParameterView authToken={authToken} />
+            )}
+
+            {/* PROJECTS VIEW */}
+            {activeMenu === "projects" && (
+              <ProjectsView authToken={authToken} currentUser={currentUser} />
             )}
 
             {/* DASHBOARD & TASKS VIEW */}

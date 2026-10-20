@@ -186,3 +186,37 @@ func (r *UserRepository) ListRoles(ctx context.Context) ([]domain.Role, error) {
 	}
 	return roles, nil
 }
+
+func (r *UserRepository) ListUsers(ctx context.Context) ([]domain.UserResponse, error) {
+	query := `
+		SELECT 
+			u.id, u.email, u.full_name, u.system_role, u.status,
+			COALESCE(ro.code, '') AS role_code,
+			COALESCE(ro.name, '') AS role_name,
+			u.last_login_at
+		FROM users u
+		LEFT JOIN roles ro ON u.role_id = ro.id
+		WHERE u.deleted_at IS NULL AND u.status = 'ACTIVE'
+		ORDER BY u.full_name ASC;
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("error querying users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []domain.UserResponse
+	for rows.Next() {
+		var u domain.UserResponse
+		var lastLogin sql.NullTime
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.SystemRole, &u.Status, &u.RoleCode, &u.RoleName, &lastLogin); err != nil {
+			return nil, err
+		}
+		if lastLogin.Valid {
+			t := lastLogin.Time
+			u.LastLoginAt = &t
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}

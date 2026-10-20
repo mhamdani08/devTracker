@@ -93,6 +93,24 @@ func (h *AuthHandler) Roles(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AuthHandler) Users(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		h.writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	users, err := h.authService.ListUsers(r.Context())
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Gagal memuat daftar pengguna")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    users,
+	})
+}
+
 func (h *AuthHandler) writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

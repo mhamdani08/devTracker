@@ -89,6 +89,10 @@ func main() {
 	var parameterService *service.ParameterService
 	var parameterHandler *handler.ParameterHandler
 
+	var projectRepo *repository.ProjectRepository
+	var projectService *service.ProjectService
+	var projectHandler *handler.ProjectHandler
+
 	if db != nil {
 		userRepo = repository.NewUserRepository(db)
 		authService = service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
@@ -97,6 +101,10 @@ func main() {
 		parameterRepo = repository.NewParameterRepository(db)
 		parameterService = service.NewParameterService(parameterRepo)
 		parameterHandler = handler.NewParameterHandler(parameterService)
+
+		projectRepo = repository.NewProjectRepository(db)
+		projectService = service.NewProjectService(projectRepo, parameterRepo)
+		projectHandler = handler.NewProjectHandler(projectService)
 	}
 
 	mux := http.NewServeMux()
@@ -164,6 +172,9 @@ func main() {
 
 		// Roles list: GET /api/v1/roles
 		mux.HandleFunc("/api/v1/roles", authHandler.Roles)
+
+		// Users list: GET /api/v1/users
+		mux.HandleFunc("/api/v1/users", authHandler.Users)
 	}
 
 	// 4. General Parameters Endpoints
@@ -196,6 +207,18 @@ func main() {
 			}
 			parameterHandler.HandleParameterByID(w, r)
 		}))
+	}
+
+	// 5. Project Endpoints
+	if projectHandler != nil && authService != nil {
+		// List (GET) & Create (POST)
+		mux.Handle("/api/v1/projects", middleware.AuthMiddleware(authService, http.HandlerFunc(projectHandler.HandleProjects)))
+
+		// Project Stats: GET /api/v1/projects/stats
+		mux.Handle("/api/v1/projects/stats", middleware.AuthMiddleware(authService, http.HandlerFunc(projectHandler.HandleStats)))
+
+		// Project Detail & Sub-resources: /api/v1/projects/{id}...
+		mux.Handle("/api/v1/projects/", middleware.AuthMiddleware(authService, http.HandlerFunc(projectHandler.HandleProjectSubroutes)))
 	}
 
 	handlerWithCORS := corsMiddleware(cfg.CORSAllowedOrigins, mux)

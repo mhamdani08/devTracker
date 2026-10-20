@@ -8,6 +8,13 @@ export const SIDEBAR_NAVIGATION = [
     icon: "dashboard",
   },
   {
+    id: "projects",
+    label: "Projects & Portfolio",
+    category: "main",
+    roles: ["*"],
+    icon: "projects",
+  },
+  {
     id: "general_parameters",
     label: "Parameter Umum",
     category: "system",

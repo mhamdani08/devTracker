@@ -125,3 +125,7 @@ func (s *AuthService) GetProfile(ctx context.Context, userID string) (*domain.Us
 func (s *AuthService) ListRoles(ctx context.Context) ([]domain.Role, error) {
 	return s.userRepo.ListRoles(ctx)
 }
+
+func (s *AuthService) ListUsers(ctx context.Context) ([]domain.UserResponse, error) {
+	return s.userRepo.ListUsers(ctx)
+}
