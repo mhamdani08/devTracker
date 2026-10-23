@@ -185,6 +185,10 @@ func main() {
 		meProtected := middleware.AuthMiddleware(authService, http.HandlerFunc(authHandler.Me))
 		mux.Handle("/api/v1/auth/me", meProtected)
 
+		// Change Password (Protected): POST /api/v1/auth/change-password
+		changePwdProtected := middleware.AuthMiddleware(authService, http.HandlerFunc(authHandler.ChangePassword))
+		mux.Handle("/api/v1/auth/change-password", changePwdProtected)
+
 		// Roles list: GET /api/v1/roles
 		mux.HandleFunc("/api/v1/roles", authHandler.Roles)
 	}

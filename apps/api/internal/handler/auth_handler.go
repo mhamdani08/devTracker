@@ -111,6 +111,53 @@ func (h *AuthHandler) Users(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		h.writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	claims, ok := middleware.GetClaimsFromContext(r.Context())
+	if !ok {
+		h.writeError(w, http.StatusUnauthorized, "Sesi tidak terautentikasi")
+		return
+	}
+
+	var req domain.ChangePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, http.StatusBadRequest, "Format payload JSON tidak valid")
+		return
+	}
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		h.writeError(w, http.StatusBadRequest, "Password saat ini dan password baru wajib diisi")
+		return
+	}
+
+	err := h.authService.ChangePassword(r.Context(), claims.UserID, req)
+	if err != nil {
+		if errors.Is(err, service.ErrWrongCurrentPassword) {
+			h.writeError(w, http.StatusBadRequest, "Password saat ini tidak tepat")
+			return
+		}
+		if errors.Is(err, service.ErrPasswordTooShort) {
+			h.writeError(w, http.StatusBadRequest, "Password baru minimal 6 karakter")
+			return
+		}
+		if errors.Is(err, service.ErrSamePassword) {
+			h.writeError(w, http.StatusBadRequest, "Password baru tidak boleh sama dengan password saat ini")
+			return
+		}
+		h.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"message": "Password berhasil diperbarui",
+	})
+}
+
 func (h *AuthHandler) writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

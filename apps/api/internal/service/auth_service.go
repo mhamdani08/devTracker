@@ -15,9 +15,12 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("email atau password tidak valid")
-	ErrAccountNotActive   = errors.New("akun Anda berstatus non-aktif atau belum diaktivasi")
-	ErrInvalidToken       = errors.New("token otorisasi tidak valid atau telah kedaluwarsa")
+	ErrInvalidCredentials  = errors.New("email atau password tidak valid")
+	ErrAccountNotActive    = errors.New("akun Anda berstatus non-aktif atau belum diaktivasi")
+	ErrInvalidToken        = errors.New("token otorisasi tidak valid atau telah kedaluwarsa")
+	ErrWrongCurrentPassword = errors.New("password saat ini tidak tepat")
+	ErrPasswordTooShort    = errors.New("password baru minimal harus terdiri dari 6 karakter")
+	ErrSamePassword        = errors.New("password baru tidak boleh sama dengan password saat ini")
 )
 
 type AuthService struct {
@@ -128,4 +131,37 @@ func (s *AuthService) ListRoles(ctx context.Context) ([]domain.Role, error) {
 
 func (s *AuthService) ListUsers(ctx context.Context) ([]domain.UserResponse, error) {
 	return s.userRepo.ListUsers(ctx)
+}
+
+func (s *AuthService) ChangePassword(ctx context.Context, userID string, req domain.ChangePasswordRequest) error {
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("ID pengguna tidak valid")
+	}
+
+	newPassword := strings.TrimSpace(req.NewPassword)
+	if len(newPassword) < 6 {
+		return ErrPasswordTooShort
+	}
+
+	if req.CurrentPassword == newPassword {
+		return ErrSamePassword
+	}
+
+	user, err := s.userRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return ErrWrongCurrentPassword
+	}
+
+	// Hash new password
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("gagal mengenkripsi password baru: %w", err)
+	}
+
+	return s.userRepo.UpdatePassword(ctx, userID, string(hash))
 }

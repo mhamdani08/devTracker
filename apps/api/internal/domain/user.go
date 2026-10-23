@@ -118,6 +118,11 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 type UpdateUserStatusRequest struct {
 	Status UserStatus `json:"status"`
 }

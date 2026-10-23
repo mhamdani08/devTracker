@@ -29,6 +29,27 @@ export default function HomePage() {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [taskSearchQuery, setTaskSearchQuery] = useState("");
 
+  // Change Password Modal & Toast State
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showPasswordFields, setShowPasswordFields] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [passwordError, setPasswordError] = useState(null);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const apiBaseUrl = "/api/v1";
 
   // Demo accounts for rapid role testing
@@ -172,6 +193,78 @@ export default function HomePage() {
     setEmail("");
     setPassword("");
     setLoginError("");
+  }
+
+  function handleOpenChangePassword() {
+    setUserDropdownOpen(false);
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setShowPasswordFields({ current: false, new: false, confirm: false });
+    setPasswordError(null);
+    setIsChangePasswordOpen(true);
+  }
+
+  function handleCloseChangePassword() {
+    if (isSubmittingPassword) return;
+    setIsChangePasswordOpen(false);
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    setShowPasswordFields({ current: false, new: false, confirm: false });
+    setPasswordError(null);
+  }
+
+  async function handleChangePassword(e) {
+    if (e) e.preventDefault();
+    setPasswordError(null);
+
+    const { currentPassword, newPassword, confirmPassword } = passwordForm;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("Semua field kata sandi wajib diisi");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("Password baru minimal harus 6 karakter");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Konfirmasi password baru tidak cocok");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError("Password baru tidak boleh sama dengan password saat ini");
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    try {
+      const res = await fetch(`${apiBaseUrl}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Gagal mengubah password");
+      }
+
+      setIsChangePasswordOpen(false);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setShowPasswordFields({ current: false, new: false, confirm: false });
+      showToast("Password berhasil diperbarui! Silakan gunakan password baru Anda untuk login berikutnya.", "success");
+    } catch (err) {
+      setPasswordError(err.message);
+    } finally {
+      setIsSubmittingPassword(false);
+    }
   }
 
   function selectDemoAccount(acc) {
@@ -848,52 +941,94 @@ export default function HomePage() {
               </button>
 
               {userDropdownOpen && (
-                <div
-                  className="dash-card animate-fade-in"
-                  style={{
-                    position: "absolute",
-                    top: "42px",
-                    right: 0,
-                    width: "210px",
-                    zIndex: 100,
-                    padding: "6px",
-                  }}
-                >
-                  <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-light)" }}>
-                    <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "var(--text-main)" }}>
-                      {currentUser?.full_name}
-                    </div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{currentUser?.email}</div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
+                <>
+                  <div
+                    onClick={() => setUserDropdownOpen(false)}
                     style={{
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "8px 10px",
-                      borderRadius: "4px",
-                      border: "none",
-                      background: "none",
-                      color: "#dc2626",
-                      fontSize: "0.82rem",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginTop: "4px",
+                      position: "fixed",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 90,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fef2f2")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  />
+                  <div
+                    className="dash-card animate-fade-in"
+                    style={{
+                      position: "absolute",
+                      top: "42px",
+                      right: 0,
+                      width: "220px",
+                      zIndex: 100,
+                      padding: "6px",
+                    }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                      <polyline points="16 17 21 12 16 7"></polyline>
-                      <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    <span>Keluar (Logout)</span>
-                  </button>
-                </div>
+                    <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-light)" }}>
+                      <div style={{ fontSize: "0.82rem", fontWeight: "700", color: "var(--text-main)" }}>
+                        {currentUser?.full_name}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{currentUser?.email}</div>
+                    </div>
+
+                    <button
+                      onClick={handleOpenChangePassword}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        borderRadius: "4px",
+                        border: "none",
+                        background: "none",
+                        color: "var(--text-main)",
+                        fontSize: "0.82rem",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginTop: "4px",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--bg-hover, #f1f5f9)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
+                      <span>Change Password</span>
+                    </button>
+
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        borderRadius: "4px",
+                        border: "none",
+                        background: "none",
+                        color: "#dc2626",
+                        fontSize: "0.82rem",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginTop: "2px",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#fef2f2")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                      </svg>
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -1367,6 +1502,416 @@ export default function HomePage() {
             )}
           </div>
         </main>
+
+        {/* TOAST NOTIFICATION */}
+        {toast && (
+          <div
+            style={{
+              position: "fixed",
+              top: "20px",
+              right: "20px",
+              zIndex: 99999,
+              backgroundColor: toast.type === "error" ? "#dc2626" : "#059669",
+              color: "#ffffff",
+              padding: "12px 18px",
+              borderRadius: "8px",
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+              fontSize: "0.875rem",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              maxWidth: "420px",
+              animation: "fadeIn 0.2s ease-in-out",
+            }}
+          >
+            <span>{toast.type === "error" ? "⚠️" : "✅"}</span>
+            <span style={{ flex: 1 }}>{toast.message}</span>
+            <button
+              onClick={() => setToast(null)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#ffffff",
+                cursor: "pointer",
+                padding: "2px 4px",
+                fontSize: "14px",
+                opacity: 0.8,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* CHANGE PASSWORD MODAL */}
+        {isChangePasswordOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.65)",
+              backdropFilter: "blur(4px)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) handleCloseChangePassword();
+            }}
+          >
+            <div
+              className="dash-card"
+              style={{
+                backgroundColor: "var(--bg-surface)",
+                borderRadius: "var(--radius-xl, 14px)",
+                width: "100%",
+                maxWidth: "440px",
+                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
+                overflow: "hidden",
+                border: "1px solid var(--border-subtle, #e2e8f0)",
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  padding: "18px 22px",
+                  borderBottom: "1px solid var(--border-light, #e2e8f0)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      backgroundColor: "rgba(16, 185, 129, 0.12)",
+                      color: "var(--green-700, #047857)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "18px",
+                    }}
+                  >
+                    🔑
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: "700", color: "var(--text-main)" }}>
+                      Change Password
+                    </h3>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      Akun: <strong>{currentUser?.full_name}</strong>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseChangePassword}
+                  disabled={isSubmittingPassword}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "18px",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    padding: "4px",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleChangePassword} style={{ padding: "20px 22px" }}>
+                {passwordError && (
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      backgroundColor: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      borderRadius: "6px",
+                      color: "#b91c1c",
+                      fontSize: "0.82rem",
+                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>⚠️</span>
+                    <span>{passwordError}</span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  {/* Current Password */}
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                        color: "var(--text-main)",
+                        marginBottom: "5px",
+                      }}
+                    >
+                      Password Saat Ini <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showPasswordFields.current ? "text" : "password"}
+                        placeholder="Masukkan password saat ini"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                        }
+                        disabled={isSubmittingPassword}
+                        required
+                        style={{
+                          width: "100%",
+                          padding: "9px 36px 9px 12px",
+                          fontSize: "0.85rem",
+                          borderRadius: "6px",
+                          border: "1px solid var(--border-light, #cbd5e1)",
+                          outline: "none",
+                          backgroundColor: "var(--bg-canvas, #ffffff)",
+                          color: "var(--text-main)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPasswordFields({
+                            ...showPasswordFields,
+                            current: !showPasswordFields.current,
+                          })
+                        }
+                        tabIndex={-1}
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text-muted)",
+                          fontSize: "14px",
+                          padding: "2px",
+                        }}
+                      >
+                        {showPasswordFields.current ? "👁️" : "🙈"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                        color: "var(--text-main)",
+                        marginBottom: "5px",
+                      }}
+                    >
+                      Password Baru <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showPasswordFields.new ? "text" : "password"}
+                        placeholder="Minimal 6 karakter"
+                        value={passwordForm.newPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                        }
+                        disabled={isSubmittingPassword}
+                        required
+                        minLength={6}
+                        style={{
+                          width: "100%",
+                          padding: "9px 36px 9px 12px",
+                          fontSize: "0.85rem",
+                          borderRadius: "6px",
+                          border: "1px solid var(--border-light, #cbd5e1)",
+                          outline: "none",
+                          backgroundColor: "var(--bg-canvas, #ffffff)",
+                          color: "var(--text-main)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPasswordFields({
+                            ...showPasswordFields,
+                            new: !showPasswordFields.new,
+                          })
+                        }
+                        tabIndex={-1}
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text-muted)",
+                          fontSize: "14px",
+                          padding: "2px",
+                        }}
+                      >
+                        {showPasswordFields.new ? "👁️" : "🙈"}
+                      </button>
+                    </div>
+                    {passwordForm.newPassword && passwordForm.newPassword.length < 6 && (
+                      <div style={{ fontSize: "0.72rem", color: "#dc2626", marginTop: "4px" }}>
+                        Password terlalu pendek (minimal 6 karakter)
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm New Password */}
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                        color: "var(--text-main)",
+                        marginBottom: "5px",
+                      }}
+                    >
+                      Konfirmasi Password Baru <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type={showPasswordFields.confirm ? "text" : "password"}
+                        placeholder="Ulangi password baru"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) =>
+                          setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                        }
+                        disabled={isSubmittingPassword}
+                        required
+                        style={{
+                          width: "100%",
+                          padding: "9px 36px 9px 12px",
+                          fontSize: "0.85rem",
+                          borderRadius: "6px",
+                          border: "1px solid var(--border-light, #cbd5e1)",
+                          outline: "none",
+                          backgroundColor: "var(--bg-canvas, #ffffff)",
+                          color: "var(--text-main)",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPasswordFields({
+                            ...showPasswordFields,
+                            confirm: !showPasswordFields.confirm,
+                          })
+                        }
+                        tabIndex={-1}
+                        style={{
+                          position: "absolute",
+                          right: "10px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--text-muted)",
+                          fontSize: "14px",
+                          padding: "2px",
+                        }}
+                      >
+                        {showPasswordFields.confirm ? "👁️" : "🙈"}
+                      </button>
+                    </div>
+                    {passwordForm.confirmPassword &&
+                      passwordForm.newPassword !== passwordForm.confirmPassword && (
+                        <div style={{ fontSize: "0.72rem", color: "#dc2626", marginTop: "4px" }}>
+                          Konfirmasi password belum cocok
+                        </div>
+                      )}
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "10px",
+                    marginTop: "22px",
+                    paddingTop: "14px",
+                    borderTop: "1px solid var(--border-light, #e2e8f0)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleCloseChangePassword}
+                    disabled={isSubmittingPassword}
+                    className="btn"
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "0.82rem",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      border: "1px solid var(--border-light, #cbd5e1)",
+                      background: "none",
+                      color: "var(--text-main)",
+                    }}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      isSubmittingPassword ||
+                      !passwordForm.currentPassword ||
+                      !passwordForm.newPassword ||
+                      passwordForm.newPassword.length < 6 ||
+                      passwordForm.newPassword !== passwordForm.confirmPassword
+                    }
+                    className="btn"
+                    style={{
+                      padding: "8px 18px",
+                      fontSize: "0.82rem",
+                      fontWeight: "600",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      border: "none",
+                      backgroundColor: "var(--green-600, #16a34a)",
+                      color: "#ffffff",
+                      opacity:
+                        isSubmittingPassword ||
+                          !passwordForm.currentPassword ||
+                          !passwordForm.newPassword ||
+                          passwordForm.newPassword.length < 6 ||
+                          passwordForm.newPassword !== passwordForm.confirmPassword
+                          ? 0.6
+                          : 1,
+                    }}
+                  >
+                    {isSubmittingPassword ? "Menyimpan..." : "Simpan Password"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
