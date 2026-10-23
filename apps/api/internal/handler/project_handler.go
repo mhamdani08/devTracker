@@ -14,11 +14,19 @@ import (
 )
 
 type ProjectHandler struct {
-	service *service.ProjectService
+	service     *service.ProjectService
+	taskHandler *TaskHandler
 }
 
-func NewProjectHandler(service *service.ProjectService) *ProjectHandler {
-	return &ProjectHandler{service: service}
+func NewProjectHandler(service *service.ProjectService, taskHandler *TaskHandler) *ProjectHandler {
+	return &ProjectHandler{
+		service:     service,
+		taskHandler: taskHandler,
+	}
+}
+
+func (h *ProjectHandler) SetTaskHandler(taskHandler *TaskHandler) {
+	h.taskHandler = taskHandler
 }
 
 // HandleProjects processes /api/v1/projects (GET list, POST create)
@@ -110,6 +118,14 @@ func (h *ProjectHandler) HandleProjectSubroutes(w http.ResponseWriter, r *http.R
 		if len(parts) == 6 && r.Method == http.MethodDelete {
 			docID := parts[5]
 			h.removeDocument(w, r, projectID, docID)
+			return
+		}
+	}
+
+	// Case 4: /api/v1/projects/{id}/tasks...
+	if subResource == "tasks" {
+		if h.taskHandler != nil {
+			h.taskHandler.HandleProjectTasks(w, r, projectID)
 			return
 		}
 	}

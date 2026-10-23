@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import ProjectTasksTab from "./ProjectTasksTab";
 
 export default function ProjectDetailView({
   projectDetail,
   loadingDetail,
   authToken,
+  currentUser,
   userOptions = [],
   onBack,
   onRefresh,
@@ -15,7 +17,7 @@ export default function ProjectDetailView({
   showToast,
   getHealthBadge,
 }) {
-  const [detailTab, setDetailTab] = useState("overview"); // "overview" | "members" | "documents"
+  const [detailTab, setDetailTab] = useState("tasks"); // "tasks" | "overview" | "members" | "documents"
   const [copiedRepo, setCopiedRepo] = useState(false);
 
   // Sub-resource form state
@@ -544,6 +546,7 @@ export default function ProjectDetailView({
             }}
           >
             {[
+              { id: "tasks", label: `Tasks Backlog (${projectDetail?.total_task || 0})`, icon: "⚡" },
               { id: "overview", label: "Overview & Specifications", icon: "📋" },
               { id: "members", label: `Team Members (${projectDetail?.members?.length || 0})`, icon: "👥" },
               { id: "documents", label: `Supporting Documents (${projectDetail?.documents?.length || 0})`, icon: "📁" },
@@ -573,6 +576,17 @@ export default function ProjectDetailView({
           </div>
 
           {/* 4. Tab Body Content */}
+          {detailTab === "tasks" && (
+            <ProjectTasksTab
+              projectDetail={projectDetail}
+              authToken={authToken}
+              currentUser={currentUser}
+              userOptions={userOptions}
+              showToast={showToast}
+              onProjectRefresh={onRefresh}
+            />
+          )}
+
           {detailTab === "overview" && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "16px" }}>
               {/* Left Column: Specifications & Codebase */}

@@ -93,6 +93,10 @@ func main() {
 	var projectService *service.ProjectService
 	var projectHandler *handler.ProjectHandler
 
+	var taskRepo *repository.TaskRepository
+	var taskService *service.TaskService
+	var taskHandler *handler.TaskHandler
+
 	if db != nil {
 		userRepo = repository.NewUserRepository(db)
 		authService = service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
@@ -104,7 +108,12 @@ func main() {
 
 		projectRepo = repository.NewProjectRepository(db)
 		projectService = service.NewProjectService(projectRepo, parameterRepo)
-		projectHandler = handler.NewProjectHandler(projectService)
+
+		taskRepo = repository.NewTaskRepository(db)
+		taskService = service.NewTaskService(taskRepo, projectRepo, parameterRepo)
+		taskHandler = handler.NewTaskHandler(taskService)
+
+		projectHandler = handler.NewProjectHandler(projectService, taskHandler)
 	}
 
 	mux := http.NewServeMux()
@@ -219,6 +228,12 @@ func main() {
 
 		// Project Detail & Sub-resources: /api/v1/projects/{id}...
 		mux.Handle("/api/v1/projects/", middleware.AuthMiddleware(authService, http.HandlerFunc(projectHandler.HandleProjectSubroutes)))
+	}
+
+	// 6. Task Endpoints
+	if taskHandler != nil && authService != nil {
+		// Task Detail & Sub-resources: /api/v1/tasks/{id} and /api/v1/tasks/{id}/status
+		mux.Handle("/api/v1/tasks/", middleware.AuthMiddleware(authService, http.HandlerFunc(taskHandler.HandleTaskSubroutes)))
 	}
 
 	handlerWithCORS := corsMiddleware(cfg.CORSAllowedOrigins, mux)

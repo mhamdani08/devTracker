@@ -1005,6 +1005,7 @@ export default function ProjectsView({ authToken, currentUser }) {
           projectDetail={projectDetail}
           loadingDetail={loadingDetail}
           authToken={authToken}
+          currentUser={currentUser}
           userOptions={userOptions}
           onBack={() => setIsDetailDrawerOpen(false)}
           onRefresh={() => projectDetail?.id && refreshProjectDetail(projectDetail.id)}
