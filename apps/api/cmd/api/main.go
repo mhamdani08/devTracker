@@ -85,6 +85,9 @@ func main() {
 	var authService *service.AuthService
 	var authHandler *handler.AuthHandler
 
+	var userService *service.UserService
+	var userHandler *handler.UserHandler
+
 	var parameterRepo *repository.ParameterRepository
 	var parameterService *service.ParameterService
 	var parameterHandler *handler.ParameterHandler
@@ -101,6 +104,9 @@ func main() {
 		userRepo = repository.NewUserRepository(db)
 		authService = service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
 		authHandler = handler.NewAuthHandler(authService)
+
+		userService = service.NewUserService(userRepo)
+		userHandler = handler.NewUserHandler(userService)
 
 		parameterRepo = repository.NewParameterRepository(db)
 		parameterService = service.NewParameterService(parameterRepo)
@@ -181,9 +187,30 @@ func main() {
 
 		// Roles list: GET /api/v1/roles
 		mux.HandleFunc("/api/v1/roles", authHandler.Roles)
+	}
 
-		// Users list: GET /api/v1/users
-		mux.HandleFunc("/api/v1/users", authHandler.Users)
+	// 3b. User Management Endpoints
+	if userHandler != nil && authService != nil {
+		// List & Create Users: /api/v1/users
+		mux.Handle("/api/v1/users", middleware.AuthMiddleware(authService, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				adminOnly := middleware.RequireSysAdmin(http.HandlerFunc(userHandler.HandleUsers))
+				adminOnly.ServeHTTP(w, r)
+				return
+			}
+			userHandler.HandleUsers(w, r)
+		})))
+
+		// User Subroutes: /api/v1/users/{id}, /api/v1/users/stats, /api/v1/users/{id}/status, etc.
+		mux.Handle("/api/v1/users/", middleware.AuthMiddleware(authService, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Read-only GET for specific user ID is allowed for all authenticated users
+			if r.Method != http.MethodGet {
+				adminOnly := middleware.RequireSysAdmin(http.HandlerFunc(userHandler.HandleUserSubroutes))
+				adminOnly.ServeHTTP(w, r)
+				return
+			}
+			userHandler.HandleUserSubroutes(w, r)
+		})))
 	}
 
 	// 4. General Parameters Endpoints

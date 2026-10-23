@@ -16,11 +16,19 @@ export const SIDEBAR_NAVIGATION = [
   },
   {
     id: "general_parameters",
-    label: "Parameter Umum",
+    label: "General Parameter",
     category: "system",
     roles: ["*"],
     systemRoles: ["SYS_ADMIN"],
     icon: "parameters",
+  },
+  {
+    id: "user_management",
+    label: "User Managements",
+    category: "system",
+    roles: ["*"],
+    systemRoles: ["SYS_ADMIN"],
+    icon: "user_management",
   },
 
   /* =========================================================================
@@ -104,9 +112,9 @@ export const SIDEBAR_NAVIGATION = [
 ];
 
 export const NAVIGATION_GROUPS = [
-  { id: "main", label: "Menu Utama" },
-  { id: "role", label: "Alur Kerja & Peran" },
-  { id: "system", label: "Sistem & Tata Kelola" },
+  { id: "main", label: "Main Menu" },
+  { id: "role", label: "Workflow & Roles" },
+  { id: "system", label: "System Management" },
 ];
 
 /**

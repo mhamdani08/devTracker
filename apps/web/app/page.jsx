@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SIDEBAR_NAVIGATION, filterMenuForUser, getRoleBadgeStyle, groupMenuByCategory } from "../lib/navigation";
 import GeneralParameterView from "../components/GeneralParameterView";
 import ProjectsView from "../components/ProjectsView";
+import UsersView from "../components/UsersView";
 
 export default function HomePage() {
   // Authentication & User State
@@ -1360,61 +1361,9 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* USER MANAGEMENT VIEW (DASH UI DIRECTORY TABLE) */}
+            {/* USER MANAGEMENT VIEW */}
             {activeMenu === "user_management" && (
-              <div className="dash-card animate-fade-in">
-                <div style={{ padding: "1.1rem 1.35rem", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <h2 style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--text-main)" }}>Manajemen Pengguna & Hak Akses</h2>
-                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Direktori akun developer dan administrator level sistem.</p>
-                  </div>
-                  <button className="dash-btn dash-btn-primary">+ Tambah User Baru</button>
-                </div>
-                <table className="dash-table">
-                  <thead>
-                    <tr>
-                      <th>Nama Pengguna</th>
-                      <th>Email Akun</th>
-                      <th style={{ width: "160px" }}>Role Profesi</th>
-                      <th style={{ width: "130px" }}>Level Sistem</th>
-                      <th style={{ width: "110px", textAlign: "center" }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {demoAccounts.map((u, i) => (
-                      <tr key={i}>
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <div
-                              style={{
-                                width: "28px",
-                                height: "28px",
-                                borderRadius: "50%",
-                                backgroundColor: "var(--green-100)",
-                                color: "var(--green-800)",
-                                fontSize: "0.72rem",
-                                fontWeight: "800",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              {u.label[0]}
-                            </div>
-                            <span style={{ fontWeight: "600" }}>{u.role.split(" (")[0]} User</span>
-                          </div>
-                        </td>
-                        <td style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>{u.email}</td>
-                        <td><span className="dash-badge dash-badge-info">{u.role}</span></td>
-                        <td><span style={{ fontWeight: "700", fontSize: "0.78rem" }}>{u.id === "admin" ? "SYS_ADMIN" : "USER"}</span></td>
-                        <td style={{ textAlign: "center" }}>
-                          <span className="dash-badge dash-badge-success">ACTIVE</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <UsersView authToken={authToken} currentUser={currentUser} />
             )}
           </div>
         </main>

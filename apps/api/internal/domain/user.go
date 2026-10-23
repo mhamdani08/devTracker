@@ -52,9 +52,12 @@ type UserResponse struct {
 	FullName    string     `json:"full_name"`
 	SystemRole  SystemRole `json:"system_role"`
 	Status      UserStatus `json:"status"`
+	RoleID      *string    `json:"role_id,omitempty"`
 	RoleCode    string     `json:"role_code,omitempty"`
 	RoleName    string     `json:"role_name,omitempty"`
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 func (u *User) ToResponse() UserResponse {
@@ -64,9 +67,12 @@ func (u *User) ToResponse() UserResponse {
 		FullName:    u.FullName,
 		SystemRole:  u.SystemRole,
 		Status:      u.Status,
+		RoleID:      u.RoleID,
 		RoleCode:    u.RoleCode,
 		RoleName:    u.RoleName,
 		LastLoginAt: u.LastLoginAt,
+		CreatedAt:   u.CreatedAt,
+		UpdatedAt:   u.UpdatedAt,
 	}
 }
 
@@ -89,4 +95,45 @@ type JWTClaims struct {
 	RoleCode   string     `json:"role_code,omitempty"`
 	RoleName   string     `json:"role_name,omitempty"`
 	jwt.RegisteredClaims
+}
+
+type CreateUserRequest struct {
+	Email      string     `json:"email"`
+	FullName   string     `json:"full_name"`
+	Password   string     `json:"password"`
+	RoleID     *string    `json:"role_id"`
+	SystemRole SystemRole `json:"system_role"`
+	Status     UserStatus `json:"status"`
+}
+
+type UpdateUserRequest struct {
+	Email      string     `json:"email"`
+	FullName   string     `json:"full_name"`
+	RoleID     *string    `json:"role_id"`
+	SystemRole SystemRole `json:"system_role"`
+	Status     UserStatus `json:"status"`
+}
+
+type ResetPasswordRequest struct {
+	NewPassword string `json:"new_password"`
+}
+
+type UpdateUserStatusRequest struct {
+	Status UserStatus `json:"status"`
+}
+
+type UserFilter struct {
+	Search          string
+	RoleID          string
+	SystemRole      string
+	Status          string
+	IncludeInactive bool
+}
+
+type UserStats struct {
+	TotalUsers    int `json:"total_users"`
+	ActiveUsers   int `json:"active_users"`
+	DisabledUsers int `json:"disabled_users"`
+	SysAdminUsers int `json:"sysadmin_users"`
+	TotalRoles    int `json:"total_roles"`
 }

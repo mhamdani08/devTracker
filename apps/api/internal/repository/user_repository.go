@@ -188,18 +188,63 @@ func (r *UserRepository) ListRoles(ctx context.Context) ([]domain.Role, error) {
 }
 
 func (r *UserRepository) ListUsers(ctx context.Context) ([]domain.UserResponse, error) {
-	query := `
+	return r.ListUsersFiltered(ctx, domain.UserFilter{IncludeInactive: false})
+}
+
+func (r *UserRepository) ListUsersFiltered(ctx context.Context, filter domain.UserFilter) ([]domain.UserResponse, error) {
+	var conditions []string
+	var args []interface{}
+	argIdx := 1
+
+	conditions = append(conditions, "u.deleted_at IS NULL")
+
+	if !filter.IncludeInactive {
+		conditions = append(conditions, fmt.Sprintf("u.status = $%d", argIdx))
+		args = append(args, "ACTIVE")
+		argIdx++
+	} else if filter.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("u.status = $%d", argIdx))
+		args = append(args, strings.ToUpper(filter.Status))
+		argIdx++
+	}
+
+	if filter.RoleID != "" {
+		conditions = append(conditions, fmt.Sprintf("u.role_id = $%d", argIdx))
+		args = append(args, filter.RoleID)
+		argIdx++
+	}
+
+	if filter.SystemRole != "" {
+		conditions = append(conditions, fmt.Sprintf("u.system_role = $%d", argIdx))
+		args = append(args, strings.ToUpper(filter.SystemRole))
+		argIdx++
+	}
+
+	if filter.Search != "" {
+		pattern := "%" + strings.ToLower(strings.TrimSpace(filter.Search)) + "%"
+		conditions = append(conditions, fmt.Sprintf("(LOWER(u.full_name) LIKE $%d OR LOWER(u.email) LIKE $%d)", argIdx, argIdx))
+		args = append(args, pattern)
+		argIdx++
+	}
+
+	whereClause := "WHERE " + strings.Join(conditions, " AND ")
+
+	query := fmt.Sprintf(`
 		SELECT 
 			u.id, u.email, u.full_name, u.system_role, u.status,
+			u.role_id,
 			COALESCE(ro.code, '') AS role_code,
 			COALESCE(ro.name, '') AS role_name,
-			u.last_login_at
+			u.last_login_at,
+			u.created_at,
+			u.updated_at
 		FROM users u
 		LEFT JOIN roles ro ON u.role_id = ro.id
-		WHERE u.deleted_at IS NULL AND u.status = 'ACTIVE'
-		ORDER BY u.full_name ASC;
-	`
-	rows, err := r.db.QueryContext(ctx, query)
+		%s
+		ORDER BY u.created_at DESC;
+	`, whereClause)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying users: %w", err)
 	}
@@ -208,9 +253,20 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]domain.UserResponse, 
 	var users []domain.UserResponse
 	for rows.Next() {
 		var u domain.UserResponse
+		var roleID sql.NullString
 		var lastLogin sql.NullTime
-		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.SystemRole, &u.Status, &u.RoleCode, &u.RoleName, &lastLogin); err != nil {
+		if err := rows.Scan(
+			&u.ID, &u.Email, &u.FullName, &u.SystemRole, &u.Status,
+			&roleID,
+			&u.RoleCode, &u.RoleName,
+			&lastLogin,
+			&u.CreatedAt, &u.UpdatedAt,
+		); err != nil {
 			return nil, err
+		}
+		if roleID.Valid {
+			val := roleID.String
+			u.RoleID = &val
 		}
 		if lastLogin.Valid {
 			t := lastLogin.Time
@@ -219,4 +275,136 @@ func (r *UserRepository) ListUsers(ctx context.Context) ([]domain.UserResponse, 
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *UserRepository) CreateUser(ctx context.Context, req domain.CreateUserRequest, passwordHash string) (*domain.UserResponse, error) {
+	query := `
+		INSERT INTO users (email, full_name, password_hash, role_id, system_role, status, created_at, updated_at)
+		VALUES (LOWER($1), $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id;
+	`
+	var id string
+	err := r.db.QueryRowContext(ctx, query,
+		strings.TrimSpace(req.Email),
+		strings.TrimSpace(req.FullName),
+		passwordHash,
+		req.RoleID,
+		req.SystemRole,
+		req.Status,
+	).Scan(&id)
+	if err != nil {
+		return nil, fmt.Errorf("error creating user: %w", err)
+	}
+
+	user, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	resp := user.ToResponse()
+	return &resp, nil
+}
+
+func (r *UserRepository) UpdateUser(ctx context.Context, id string, req domain.UpdateUserRequest) (*domain.UserResponse, error) {
+	query := `
+		UPDATE users
+		SET 
+			email = LOWER($1),
+			full_name = $2,
+			role_id = $3,
+			system_role = $4,
+			status = $5,
+			updated_at = NOW()
+		WHERE id = $6 AND deleted_at IS NULL;
+	`
+	res, err := r.db.ExecContext(ctx, query,
+		strings.TrimSpace(req.Email),
+		strings.TrimSpace(req.FullName),
+		req.RoleID,
+		req.SystemRole,
+		req.Status,
+		id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error updating user: %w", err)
+	}
+
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return nil, ErrUserNotFound
+	}
+
+	user, err := r.GetUserByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	resp := user.ToResponse()
+	return &resp, nil
+}
+
+func (r *UserRepository) UpdateUserStatus(ctx context.Context, id string, status domain.UserStatus) error {
+	query := `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL;`
+	res, err := r.db.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return fmt.Errorf("error updating user status: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, id string, passwordHash string) error {
+	query := `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL;`
+	res, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	if err != nil {
+		return fmt.Errorf("error updating password: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *UserRepository) DeleteUser(ctx context.Context, id string) error {
+	query := `UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL;`
+	res, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting user: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *UserRepository) GetStats(ctx context.Context) (*domain.UserStats, error) {
+	var stats domain.UserStats
+	query := `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'ACTIVE'),
+			COUNT(*) FILTER (WHERE status = 'DISABLED'),
+			COUNT(*) FILTER (WHERE system_role = 'SYS_ADMIN')
+		FROM users
+		WHERE deleted_at IS NULL;
+	`
+	err := r.db.QueryRowContext(ctx, query).Scan(
+		&stats.TotalUsers,
+		&stats.ActiveUsers,
+		&stats.DisabledUsers,
+		&stats.SysAdminUsers,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error querying user counts: %w", err)
+	}
+
+	err = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM roles;`).Scan(&stats.TotalRoles)
+	if err != nil {
+		return nil, fmt.Errorf("error querying role count: %w", err)
+	}
+
+	return &stats, nil
 }
